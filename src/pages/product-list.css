@@ -1,0 +1,180 @@
+/* product-list.css */
+.product-list-container {
+    min-height: 100vh;
+    background-color: #f9fafb;
+}
+
+.product-list-inner {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.product-list-header {
+    margin-bottom: 2rem;
+}
+
+.search-filters-container {
+    display: flex;
+    flex-direction: column;
+    /*gap: 1rem;*/
+    align-items: flex-start;
+}
+
+@media (min-width: 1024px) {
+    .search-filters-container {
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+.search-form {
+    flex: 1;
+    max-width: 32rem;
+}
+
+.search-input-container {
+    position: relative;
+}
+
+.search-input {
+    padding-left: 2.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    height: 2.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    width: 100%;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 1px #2563eb;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 1rem;
+    width: 1rem;
+    color: #9ca3af;
+}
+
+.filters-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .filters-container {
+        width: 60%;
+    }
+}
+
+.select-trigger {
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .select-trigger {
+        width: 12rem;
+    }
+}
+
+.view-mode-toggle {
+    display: flex;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.view-mode-button {
+    border-radius: 0;
+}
+
+.results-info {
+    margin-bottom: 1.5rem;
+}
+
+.results-info-text {
+    color: #4b5563;
+}
+
+.products-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.grid-view {
+    grid-template-columns: repeat(2, 1fr); /* Changed from repeat(1, 1fr) to repeat(2, 1fr) */
+}
+
+@media (min-width: 640px) {
+    .grid-view {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .grid-view {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1280px) {
+    .grid-view {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.list-view {
+    grid-template-columns: repeat(1, 1fr);
+}
+
+.no-products {
+    text-align: center;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+}
+
+.no-products-icon {
+    color: #9ca3af;
+    margin-bottom: 1rem;
+}
+
+.no-products-icon svg {
+    height: 4rem;
+    width: 4rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.no-products-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.no-products-message {
+    color: #4b5563;
+}
+
+.loading-container {
+    min-height: 100vh;
+    background-color: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
