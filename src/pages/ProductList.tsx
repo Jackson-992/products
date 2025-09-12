@@ -1,50 +1,71 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ProductCard from '@/components/ProductCard';
-import Loader from '@/components/Loader';
-import './product-list.css';
-import { mockProducts, Product } from "@/hooks/product-data";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Search } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import ProductCard from "@/components/ProductCard";
+import Loader from "@/components/Loader";
+import "./product-list.css";
+import { Product } from "@/types/Product";
+import { getProducts } from "@/services/ProductService";
 
 const ProductList = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [sortBy, setSortBy] = useState('name');
-    const [filterCategory, setFilterCategory] = useState('all');
-    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+    const [products, setProducts] = useState<Product[]>([]);
 
-    // Get all unique categories from the products
-    const categories = ['all', ...new Set(mockProducts.map(product => product.category))];
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [sortBy, setSortBy] = useState("name");
+    const [filterCategory, setFilterCategory] = useState("all");
+    const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
 
-    // Filter and sort products
-    const filteredProducts = mockProducts
-        .filter((product: Product) => {
-            const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
-            const matchesSearch = !searchQuery ||
+    // ✅ Fetch products from Supabase
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const data = await getProducts();
+                setProducts(data);
+            } catch (err) {
+                console.error("Failed to load products:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProducts();
+    }, []);
+
+    // ✅ Get unique categories from products
+    const categories = ["all", ...new Set(products.map((p) => p.category))];
+
+    // ✅ Filter + Sort
+    const filteredProducts = products
+        .filter((product) => {
+            const matchesCategory =
+                filterCategory === "all" || product.category === filterCategory;
+            const matchesSearch =
+                !searchQuery ||
                 product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 product.category.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         })
-        .sort((a: Product, b: Product) => {
+        .sort((a, b) => {
             switch (sortBy) {
-                case 'price-low':
+                case "price-low":
                     return a.price - b.price;
-                case 'price-high':
+                case "price-high":
                     return b.price - a.price;
-                case 'rating':
+                case "rating":
                     return b.rating - a.rating;
-                case 'name':
+                case "name":
                 default:
                     return a.name.localeCompare(b.name);
             }
         });
-
-    useEffect(() => {
-        // Simulate loading
-        setTimeout(() => setLoading(false), 1000);
-    }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,9 +85,8 @@ const ProductList = () => {
             <div className="product-list-inner">
                 {/* Header */}
                 <div className="product-list-header">
-                    {/* Search and Filters */}
+                    {/* Search + Filters */}
                     <div className="search-filters-container">
-
                         <div className="filters-container">
                             {/* Category Filter */}
                             <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -74,9 +94,9 @@ const ProductList = () => {
                                     <SelectValue placeholder="Category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories.map(category => (
+                                    {categories.map((category) => (
                                         <SelectItem key={category} value={category}>
-                                            {category === 'all' ? 'All Categories' : category}
+                                            {category === "all" ? "All Categories" : category}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -101,10 +121,8 @@ const ProductList = () => {
                 {/* Results Info */}
                 <div className="results-info">
                     <p className="results-info-text">
-                        Showing {filteredProducts.length} of {mockProducts.length} products
-                        {searchQuery && (
-                            <span> for "{searchQuery}"</span>
-                        )}
+                        Showing {filteredProducts.length} of {products.length} products
+                        {searchQuery && <span> for "{searchQuery}"</span>}
                     </p>
                 </div>
 
@@ -115,11 +133,17 @@ const ProductList = () => {
                             <Search />
                         </div>
                         <h3 className="no-products-title">No products found</h3>
-                        <p className="no-products-message">Try adjusting your search or filter criteria</p>
+                        <p className="no-products-message">
+                            Try adjusting your search or filter criteria
+                        </p>
                     </div>
                 ) : (
-                    <div className={`products-grid ${viewMode === 'grid' ? 'grid-view' : 'list-view'}`}>
-                        {filteredProducts.map((product: Product) => (
+                    <div
+                        className={`products-grid ${
+                            viewMode === "grid" ? "grid-view" : "list-view"
+                        }`}
+                    >
+                        {filteredProducts.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}
                     </div>

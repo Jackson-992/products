@@ -7,36 +7,67 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Loader from '@/components/Loader';
 import './Product-details.css';
-import {Product, getProductById, getReviewsByProductId, Review} from "@/hooks/product-data";
+import { getProductDetails, ProductDetails } from "@/services/ProductService.ts";
+import {Review} from "@/types/Product.ts";
 
-const ProductDetails: React.FC = () => {
+const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [loading, setLoading] = useState<boolean>(true);
     const [selectedImage, setSelectedImage] = useState<number>(0);
     const [quantity, setQuantity] = useState<number>(1);
-    const [product, setProduct] = useState<Product | null>(null);
+    const [product, setProduct] = useState<ProductDetails | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
 
-
     useEffect(() => {
-        // Simulate API call
-        const timer = setTimeout(() => {
-            const foundProduct = getProductById(id || '');
-            setProduct(foundProduct || null);
-            setReviews(getReviewsByProductId(id || ''));
-            setLoading(false);
+        const fetchProductDetails = async () => {
+            if (!id) {
+                setLoading(false);
+                return;
+            }
 
-        }, 1000);
+            setLoading(true);
+            try {
+                const { product: productData, reviews: reviewsData } = await getProductDetails(id);
+                setProduct(productData);
+                setReviews(reviewsData);
+            } catch (error) {
+                console.error('Error fetching product details:', error);
+                setProduct(null);
+                setReviews([]);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-        return () => clearTimeout(timer);
+        fetchProductDetails();
     }, [id]);
-
 
     if (loading) {
         return (
             <div className="loading-container">
                 <Loader />
+            </div>
+        );
+    }
+
+    if (!product) {
+        return (
+            <div className="product-details-container">
+                <div className="product-details-wrapper">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate(-1)}
+                        className="back-button"
+                    >
+                        <ArrowLeft className="button-icon" />
+                        Back to Products
+                    </Button>
+                    <div className="error-message">
+                        <h2>Product not found</h2>
+                        <p>The product you're looking for doesn't exist or has been removed.</p>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -59,28 +90,30 @@ const ProductDetails: React.FC = () => {
                     <div className="product-images-section">
                         <div className="main-image-container">
                             <img
-                                src={product.images[selectedImage]}
+                                src={product.images[selectedImage] || '/placeholder-image.jpg'}
                                 alt={product.name}
                                 className="main-image"
                             />
                         </div>
-                        <div className="thumbnail-container">
-                            {product.images.map((image, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setSelectedImage(index)}
-                                    className={`thumbnail-button ${
-                                        selectedImage === index ? 'thumbnail-active' : ''
-                                    }`}
-                                >
-                                    <img
-                                        src={image}
-                                        alt={`${product.name} ${index + 1}`}
-                                        className="thumbnail-image"
-                                    />
-                                </button>
-                            ))}
-                        </div>
+                        {product.images.length > 1 && (
+                            <div className="thumbnail-container">
+                                {product.images.map((image, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => setSelectedImage(index)}
+                                        className={`thumbnail-button ${
+                                            selectedImage === index ? 'thumbnail-active' : ''
+                                        }`}
+                                    >
+                                        <img
+                                            src={image}
+                                            alt={`${product.name} ${index + 1}`}
+                                            className="thumbnail-image"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Product Info */}
@@ -114,15 +147,15 @@ const ProductDetails: React.FC = () => {
                         {/* Price */}
                         <div className="price-container">
                             <span className="current-price">
-                                Ksh {product.price}
+                                Ksh {product.price.toLocaleString()}
                             </span>
-                            {product.originalPrice > product.price && (
+                            {product.originalPrice && product.originalPrice > product.price && (
                                 <>
                                     <span className="original-price">
-                                        Ksh {product.originalPrice}
+                                        Ksh {product.originalPrice.toLocaleString()}
                                     </span>
                                     <Badge variant="destructive" className="discount-badge">
-                                        Save Ksh {(product.originalPrice - product.price).toFixed(2)}
+                                        Save Ksh {(product.originalPrice - product.price).toLocaleString()}
                                     </Badge>
                                 </>
                             )}
@@ -142,24 +175,26 @@ const ProductDetails: React.FC = () => {
                                 </span>
                             </div>
 
-                            <div className="quantity-selector">
-                                <label className="quantity-label">Quantity:</label>
-                                <div className="quantity-controls">
-                                    <button
-                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                        className="quantity-button"
-                                    >
-                                        -
-                                    </button>
-                                    <span className="quantity-value">{quantity}</span>
-                                    <button
-                                        onClick={() => setQuantity(Math.min(product.stockCount, quantity + 1))}
-                                        className="quantity-button"
-                                    >
-                                        +
-                                    </button>
+                            {product.inStock && (
+                                <div className="quantity-selector">
+                                    <label className="quantity-label">Quantity:</label>
+                                    <div className="quantity-controls">
+                                        <button
+                                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                            className="quantity-button"
+                                        >
+                                            -
+                                        </button>
+                                        <span className="quantity-value">{quantity}</span>
+                                        <button
+                                            onClick={() => setQuantity(Math.min(product.stockCount, quantity + 1))}
+                                            className="quantity-button"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Action Buttons */}
@@ -224,15 +259,19 @@ const ProductDetails: React.FC = () => {
                                 <h3 className="description-title">Product Description</h3>
                                 <p className="description-text">{product.description}</p>
 
-                                <h4 className="features-title">Key Features:</h4>
-                                <ul className="features-list">
-                                    {product.features.map((feature, index) => (
-                                        <li key={index} className="feature-item">
-                                            <span className="feature-bullet"></span>
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
+                                {product.features.length > 0 && (
+                                    <>
+                                        <h4 className="features-title">Key Features:</h4>
+                                        <ul className="features-list">
+                                            {product.features.map((feature, index) => (
+                                                <li key={index} className="feature-item">
+                                                    <span className="feature-bullet"></span>
+                                                    {feature}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -241,14 +280,18 @@ const ProductDetails: React.FC = () => {
                         <Card className="specs-card">
                             <CardContent className="specs-content">
                                 <h3 className="specs-title">Technical Specifications</h3>
-                                <dl className="specs-list">
-                                    {Object.entries(product.specifications).map(([key, value]) => (
-                                        <div key={key} className="spec-item">
-                                            <dt className="spec-key">{key}</dt>
-                                            <dd className="spec-value">{value}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
+                                {Object.keys(product.specifications).length > 0 ? (
+                                    <dl className="specs-list">
+                                        {Object.entries(product.specifications).map(([key, value]) => (
+                                            <div key={key} className="spec-item">
+                                                {/*<dt className="spec-key">{key}</dt>*/}
+                                                <dd className="spec-value">{value}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                ) : (
+                                    <p>No specifications available for this product.</p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -257,31 +300,37 @@ const ProductDetails: React.FC = () => {
                         <Card className="reviews-card">
                             <CardContent className="reviews-content">
                                 <h3 className="reviews-title">Customer Reviews</h3>
-                                <div className="reviews-list">
-                                    {reviews.map((review) => (
-                                        <div key={review.id} className="review-item">
-                                            <div className="review-header">
-                                                <div className="reviewer-info">
-                                                    <span className="reviewer-name">{review.user}</span>
-                                                    <div className="review-stars">
-                                                        {[...Array(5)].map((_, i) => (
-                                                            <Star
-                                                                key={i}
-                                                                className={`review-star ${
-                                                                    i < review.rating
-                                                                        ? 'star-filled'
-                                                                        : 'star-empty'
-                                                                }`}
-                                                            />
-                                                        ))}
+                                {reviews.length > 0 ? (
+                                    <div className="reviews-list">
+                                        {reviews.map((review) => (
+                                            <div key={review.id} className="review-item">
+                                                <div className="review-header">
+                                                    <div className="reviewer-info">
+                                                        <span className="reviewer-name">{review.user}</span>
+                                                        <div className="review-stars">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <Star
+                                                                    key={i}
+                                                                    className={`review-star ${
+                                                                        i < review.rating
+                                                                            ? 'star-filled'
+                                                                            : 'star-empty'
+                                                                    }`}
+                                                                />
+                                                            ))}
+                                                        </div>
                                                     </div>
+                                                    <span className="review-date">{review.date}</span>
                                                 </div>
-                                                <span className="review-date">{review.date}</span>
+                                                {review.comment && (
+                                                    <p className="review-comment">{review.comment}</p>
+                                                )}
                                             </div>
-                                            <p className="review-comment">{review.comment}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p>No reviews yet. Be the first to review this product!</p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -291,4 +340,4 @@ const ProductDetails: React.FC = () => {
     );
 };
 
-export default ProductDetails;
+export default ProductDetailsPage;

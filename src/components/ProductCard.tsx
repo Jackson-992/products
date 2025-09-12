@@ -4,7 +4,7 @@ import { Heart, Star, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Product } from '@/hooks/product-data';
+import { Product } from '@/types/Product';
 
 interface ProductCardProps {
     product: Product;
@@ -12,7 +12,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     // Use the first image as the main product image
-    const mainImage = product.images[0];
+    const mainImage = product.images.length > 0 ? product.images[0] : "/placeholder.png";
 
     return (
         <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">

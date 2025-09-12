@@ -13,7 +13,7 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import CartPage from "@/pages/CartPage.tsx";
-import MasterDashboard from "@/pages/MasterDashBoard.tsx";
+import MasterDashboard from "@/components/admin/MasterDashBoard.tsx";
 
 const queryClient = new QueryClient();
 
@@ -44,7 +44,7 @@ const App = () => (
                 <Routes>
                     {/* Routes with main layout (navbar + footer) */}
                     <Route element={<MainLayout />}>
-                        <Route path="/" element={<Home />} />
+                        <Route path="/" element={<Home product={undefined} />} />
                         <Route path="/products" element={<ProductList />} />
                         <Route path="/product/:id" element={<ProductDetails />} />
                         <Route path="/seller-dashboard" element={<SellerDashboard />} />

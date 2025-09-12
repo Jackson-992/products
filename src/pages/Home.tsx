@@ -1,39 +1,81 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, ShoppingBag, Users, Shield, Truck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import ProductCard from '@/components/ProductCard';
-import { mockProducts } from '@/hooks/product-data';
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, ShoppingBag, Users, Shield, Truck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import ProductCard from "@/components/ProductCard";
+import Loader from "@/components/Loader";
+import { getProducts } from "@/services/ProductService";
+import { Product } from "@/types/Product"; // keep same interface
 
-const Home = () => {
-    // Get the 4 highest rated products
-    const featuredProducts = [...mockProducts]
-        .sort((a, b) => b.rating - a.rating)
-        .slice(0, 4);
+interface ProductCardProps {
+    product: Product;
+}
+const Home:React.FC<ProductCardProps> = ({ product }) => {
+    const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const features = [
         {
             icon: ShoppingBag,
-            title: 'Wide Selection',
-            description: 'Thousands of products from trusted sellers worldwide',
+            title: "Wide Selection",
+            description: "Thousands of products from trusted sellers worldwide",
         },
         {
             icon: Shield,
-            title: 'Secure Shopping',
-            description: 'Your payments and personal data are always protected',
+            title: "Secure Shopping",
+            description: "Your payments and personal data are always protected",
         },
         {
             icon: Truck,
-            title: 'Fast Delivery',
-            description: 'Quick and reliable shipping to your doorstep',
+            title: "Fast Delivery",
+            description: "Quick and reliable shipping to your doorstep",
         },
         {
             icon: Users,
-            title: 'Community',
-            description: 'Join millions of satisfied customers and sellers',
+            title: "Community",
+            description: "Join millions of satisfied customers and sellers",
         },
     ];
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const products = await getProducts();
+
+                // sort by rating, take top 4
+                const topRated = [...products]
+                    .sort((a, b) => b.rating - a.rating)
+                    .slice(0, 4);
+
+                setFeaturedProducts(topRated);
+            } catch (err: any) {
+                console.error("Failed to load products:", err);
+                setError("Could not load products. Please try again later.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <Loader />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex justify-center items-center min-h-screen text-red-600">
+                {error}
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -55,7 +97,11 @@ const Home = () => {
                                 </Button>
                             </Link>
                             <Link to="*">
-                                <Button size="lg" variant="outline" className="text-lg px-8 text-black border-white hover:bg-white hover:text-blue-600">
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="text-lg px-8 text-black border-white hover:bg-white hover:text-blue-600"
+                                >
                                     Become a Seller
                                 </Button>
                             </Link>
@@ -72,18 +118,24 @@ const Home = () => {
                             Why Choose 254_Connect?
                         </h2>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                            We're committed to providing the best shopping experience for both buyers and sellers
+                            We're committed to providing the best shopping experience for both
+                            buyers and sellers
                         </p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {features.map((feature, index) => (
-                            <Card key={index} className="text-center p-6 hover:shadow-lg transition-shadow">
+                            <Card
+                                key={index}
+                                className="text-center p-6 hover:shadow-lg transition-shadow"
+                            >
                                 <CardContent className="p-0">
                                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <feature.icon className="h-8 w-8 text-blue-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                                    <h3 className="text-xl font-semibold mb-2">
+                                        {feature.title}
+                                    </h3>
                                     <p className="text-gray-600">{feature.description}</p>
                                 </CardContent>
                             </Card>
@@ -114,9 +166,7 @@ const Home = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {featuredProducts.map((product) => (
-                            <ProductCard key={product.id} product={{
-                                ...product,
-                            }} />
+                            <ProductCard key={product.id} product={product} />
                         ))}
                     </div>
                 </div>

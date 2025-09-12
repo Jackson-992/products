@@ -78,7 +78,7 @@ export const mockProducts: Product[] = [
             'HDR10+ and Dolby Vision',
             'Smart TV with Built-in Apps',
             'Google Assistant Voice Control',
-            '3 HDMI Ports & 2 USB Ports',
+            '3 HDMI Ports & 2 USB Ports'
         ],
         specifications: {
             'Screen Size': '55 inch',
