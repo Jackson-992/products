@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip.tsx';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Edit, Trash2 } from 'lucide-react';
-import { Product } from '@/hooks/product-data.ts';
+import { Product } from '@/types/Product.ts';
 import AddProductDialog from './AddProductDialog';
 import './ProductTable.css';
 
@@ -17,7 +17,8 @@ interface ProductTableProps {
     setSearchQuery: (query: string) => void;
     setEditingProduct: (product: Product | null) => void;
     handleDeleteProduct: (id: string) => void;
-    setProducts: (products: Product[]) => void;
+    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+    isDeleting?: string | null; // Add optional isDeleting prop
 }
 
 const ProductTable: React.FC<ProductTableProps> = ({
@@ -26,10 +27,11 @@ const ProductTable: React.FC<ProductTableProps> = ({
                                                        setSearchQuery,
                                                        setEditingProduct,
                                                        handleDeleteProduct,
-                                                       setProducts
+                                                       setProducts,
+                                                       isDeleting
                                                    }) => {
-    const getStatusBadge = (status: string, stockCount: number) => {
-        if (status === 'out_of_stock' || stockCount === 0) {
+    const getStatusBadge = (inStock: boolean, stockCount: number) => {
+        if (!inStock || stockCount === 0) {
             return <Badge variant="destructive">Out of Stock</Badge>;
         }
         if (stockCount < 10) {
@@ -73,36 +75,50 @@ const ProductTable: React.FC<ProductTableProps> = ({
                         {products.map((product) => (
                             <TableRow key={product.id}>
                                 <TableCell>
-                                    {product.images.length > 0 && (
+                                    {product.images && product.images.length > 0 ? (
                                         <img
                                             src={product.images[0]}
                                             alt={product.name}
                                             className="product-image"
+                                            onError={(e) => {
+                                                // Fallback if image fails to load
+                                                e.currentTarget.style.display = 'none';
+                                            }}
                                         />
+                                    ) : (
+                                        <div className="no-image-placeholder">No Image</div>
                                     )}
                                 </TableCell>
                                 <TableCell className="product-info">
                                     <div className="product-name">{product.name}</div>
-                                    <div className="product-description">
-                                        {product.description}
-                                    </div>
+                                    {product.description && (
+                                        <div className="product-description">{product.description}</div>
+                                    )}
                                 </TableCell>
-                                <TableCell>{product.category}</TableCell>
                                 <TableCell>
-                                    {product.originalPrice ? (
-                                        <div>
+                                    <Badge variant="outline">{product.category}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {product.originalPrice && product.originalPrice > product.price ? (
+                                        <div className="price-container">
                                             <span className="discount-price">Ksh {product.price.toFixed(2)}</span>
                                             <span className="original-price">
-                        Ksh {product.originalPrice.toFixed(2)}
-                      </span>
+                                                Ksh {product.originalPrice.toFixed(2)}
+                                            </span>
                                         </div>
                                     ) : (
                                         <span>Ksh {product.price.toFixed(2)}</span>
                                     )}
                                 </TableCell>
-                                <TableCell>{product.stockCount}</TableCell>
                                 <TableCell>
-                                    {getStatusBadge(product.status, product.stockCount)}
+                                    <Badge
+                                        variant={product.stockCount === 0 ? "destructive" : "outline"}
+                                    >
+                                        {product.stockCount} in stock
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {getStatusBadge(product.inStock, product.stockCount)}
                                 </TableCell>
                                 <TableCell>
                                     <div className="action-buttons">
@@ -112,11 +128,12 @@ const ProductTable: React.FC<ProductTableProps> = ({
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => setEditingProduct(product)}
+                                                    className="edit-btn"
                                                 >
                                                     <Edit className="icon" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Edit</TooltipContent>
+                                            <TooltipContent>Edit Product</TooltipContent>
                                         </Tooltip>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -124,11 +141,19 @@ const ProductTable: React.FC<ProductTableProps> = ({
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleDeleteProduct(product.id)}
+                                                    disabled={isDeleting === product.id}
+                                                    className="delete-btn"
                                                 >
-                                                    <Trash2 className="icon delete-icon" />
+                                                    {isDeleting === product.id ? (
+                                                        <div className="loading-spinner"></div>
+                                                    ) : (
+                                                        <Trash2 className="icon delete-icon" />
+                                                    )}
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Delete</TooltipContent>
+                                            <TooltipContent>
+                                                {isDeleting === product.id ? 'Deleting...' : 'Delete Product'}
+                                            </TooltipContent>
                                         </Tooltip>
                                     </div>
                                 </TableCell>

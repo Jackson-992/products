@@ -7,14 +7,14 @@ export interface ProductDetails extends Product {
     stockCount: number;
     description: string;
     features: string[];
-    specifications: Record<string, string>;
+    specifications: string[];
 }
 
 // Add interface for the details data structure
 interface ProductDetailsData {
     description?: string;
     features?: string[];
-    specifications?: Record<string, string>;
+    specifications?: string[];
 }
 
 // Fetch all products with category, images, and review stats
@@ -47,6 +47,7 @@ export const getProducts = async (): Promise<Product[]> => {
             price: p.price,
             originalPrice: p.originalprice ?? null,
             inStock: p.stock_number > 0 && p.is_active,
+            stockCount: p.stock_number, // Add this line
             category: p.category || "Uncategorized",
             images,
             rating: avgRating,
@@ -129,7 +130,7 @@ export const getProductDetails = async (productId: string): Promise<{
             reviews: ratings.length,
             description: details.description || "No description available",
             features: details.features || [],
-            specifications: details.specifications || {}
+            specifications: details.specifications || []
         };
 
         // Process reviews data

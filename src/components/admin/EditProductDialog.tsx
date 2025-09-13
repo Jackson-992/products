@@ -1,73 +1,205 @@
-import React from 'react';
-import { X, Image as ImageIcon, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Image as ImageIcon, Plus, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
-import { Product } from '@/hooks/product-data.ts';
+import { Switch } from '@/components/ui/switch.tsx';
+import { Product } from '@/types/Product.ts';
+import { updateProduct, uploadProductImage, deleteProductImage, updateProductImages } from '@/services/adminProductService';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {
     editingProduct: Product | null;
     setEditingProduct: (product: Product | null) => void;
-    setProducts: (products: Product[]) => void;
+    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+    refreshProducts: () => void;
 }
 
 const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                                                  editingProduct,
                                                                  setEditingProduct,
-                                                                 setProducts
+                                                                 setProducts,
+                                                                 refreshProducts
                                                              }) => {
-    if (!editingProduct) return null;
+    const [formData, setFormData] = useState({
+        name: '',
+        price: 0,
+        originalPrice: 0,
+        stockCount: 0,
+        category: '',
+        description: '',
+        features: [''],
+        specifications: [''],
+        inStock: true
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [uploadingImages, setUploadingImages] = useState(false);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isMultiple = false) => {
-        if (e.target.files && e.target.files[0]) {
+    // Initialize form data when editingProduct changes
+    useEffect(() => {
+        if (editingProduct) {
+            setFormData({
+                name: editingProduct.name || '',
+                price: editingProduct.price || 0,
+                originalPrice: editingProduct.originalPrice || 0,
+                stockCount: editingProduct.stockCount || 0,
+                category: editingProduct.category || '',
+                description: editingProduct.description || '',
+                features: editingProduct.features && editingProduct.features.length > 0
+                    ? editingProduct.features
+                    : [''],
+                specifications: editingProduct.specifications && editingProduct.specifications.length > 0
+                    ? editingProduct.specifications
+                    : [''],
+                inStock: editingProduct.inStock !== undefined ? editingProduct.inStock : true
+            });
+        }
+    }, [editingProduct]);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editingProduct || !e.target.files || !e.target.files[0]) return;
+
+        try {
+            setUploadingImages(true);
             const files = Array.from(e.target.files);
-            const readers = files.map(file => {
-                const reader = new FileReader();
-                return new Promise<string>((resolve) => {
-                    reader.onload = (event) => {
-                        if (event.target?.result) {
-                            resolve(event.target.result as string);
-                        }
-                    };
-                    reader.readAsDataURL(file);
-                });
-            });
 
-            Promise.all(readers).then((images) => {
-                if (isMultiple) {
-                    setEditingProduct({
-                        ...editingProduct,
-                        images: [...editingProduct.images, ...images]
-                    });
-                } else {
-                    setEditingProduct({
-                        ...editingProduct,
-                        images: [...images]
-                    });
-                }
-            });
+            // Upload each image
+            const uploadPromises = files.map(file => uploadProductImage(file));
+            const uploadedUrls = await Promise.all(uploadPromises);
+
+            // Update the product with new images using the correct function
+            const updatedImages = [...editingProduct.images, ...uploadedUrls];
+            await updateProductImages(editingProduct.id, updatedImages);
+
+            // Refresh the product list
+            refreshProducts();
+        } catch (error) {
+            console.error('Error uploading images:', error);
+            alert('Failed to upload images. Please try again.');
+        } finally {
+            setUploadingImages(false);
         }
     };
 
-    const handleEditProduct = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRemoveImage = async (imageUrl: string) => {
+        if (!editingProduct) return;
 
-        const updatedProduct: Product = {
-            ...editingProduct,
-            features: editingProduct.features.filter(f => f.trim() !== ''),
-            specifications: Object.fromEntries(
-                Object.entries(editingProduct.specifications)
-                    .filter(([key, value]) => key.trim() !== '' && value.trim() !== '')
-            ),
-        };
+        try {
+            // Remove image from product using the correct function
+            const updatedImages = editingProduct.images.filter(img => img !== imageUrl);
+            await updateProductImages(editingProduct.id, updatedImages);
 
-        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-        setEditingProduct(null);
+            // Delete image from storage
+            await deleteProductImage(editingProduct.id, imageUrl);
+
+            // Refresh the product list
+            refreshProducts();
+        } catch (error) {
+            console.error('Error removing image:', error);
+            alert('Failed to remove image. Please try again.');
+        }
     };
+
+    const addFeatureField = () => {
+        setFormData(prev => ({
+            ...prev,
+            features: [...prev.features, '']
+        }));
+    };
+
+    const removeFeatureField = (index: number) => {
+        setFormData(prev => {
+            const newFeatures = [...prev.features];
+            newFeatures.splice(index, 1);
+            return {
+                ...prev,
+                features: newFeatures.length > 0 ? newFeatures : ['']
+            };
+        });
+    };
+
+    const updateFeature = (index: number, value: string) => {
+        setFormData(prev => {
+            const newFeatures = [...prev.features];
+            newFeatures[index] = value;
+            return {
+                ...prev,
+                features: newFeatures
+            };
+        });
+    };
+
+    const addSpecificationField = () => {
+        setFormData(prev => ({
+            ...prev,
+            specifications: [...prev.specifications, '']
+        }));
+    };
+
+    const removeSpecificationField = (index: number) => {
+        setFormData(prev => {
+            const newSpecs = [...prev.specifications];
+            newSpecs.splice(index, 1);
+            return {
+                ...prev,
+                specifications: newSpecs.length > 0 ? newSpecs : ['']
+            };
+        });
+    };
+
+    const updateSpecification = (index: number, value: string) => {
+        setFormData(prev => {
+            const newSpecs = [...prev.specifications];
+            newSpecs[index] = value;
+            return {
+                ...prev,
+                specifications: newSpecs
+            };
+        });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingProduct) return;
+
+        try {
+            setIsSubmitting(true);
+
+            // Prepare the update data (only the properties that updateProduct accepts)
+            const updateData = {
+                name: formData.name,
+                price: formData.price,
+                originalPrice: formData.originalPrice,
+                stockCount: formData.stockCount,
+                category: formData.category,
+                inStock: formData.inStock,
+                description: formData.description,
+                features: formData.features.filter(f => f.trim() !== ''),
+                specifications: formData.specifications.filter(s => s.trim() !== '')
+            };
+
+            // Update the product
+            await updateProduct(editingProduct.id, updateData);
+
+            // Refresh the product list
+            refreshProducts();
+
+            // Close the dialog
+            setEditingProduct(null);
+
+            alert('Product updated successfully!');
+        } catch (error) {
+            console.error('Error updating product:', error);
+            alert('Failed to update product. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (!editingProduct) return null;
 
     return (
         <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
@@ -75,30 +207,29 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 <DialogHeader>
                     <DialogTitle>Edit Product</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleEditProduct} className="form">
+                <form onSubmit={handleSubmit} className="form">
                     <div className="form-grid">
                         <div className="form-field">
-                            <Label htmlFor="edit-name">Product Name</Label>
+                            <Label htmlFor="edit-name">Product Name *</Label>
                             <Input
                                 id="edit-name"
-                                value={editingProduct.name}
-                                onChange={(e) =>
-                                    setEditingProduct({ ...editingProduct, name: e.target.value })
-                                }
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 required
+                                disabled={isSubmitting}
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="edit-price">Price (Ksh)</Label>
+                            <Label htmlFor="edit-price">Price (Ksh) *</Label>
                             <Input
                                 id="edit-price"
                                 type="number"
                                 step="0.01"
-                                value={editingProduct.price}
-                                onChange={(e) =>
-                                    setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || 0 })
-                                }
+                                min="0"
+                                value={formData.price || ''}
+                                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                                 required
+                                disabled={isSubmitting}
                             />
                         </div>
                     </div>
@@ -110,32 +241,31 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 id="edit-originalPrice"
                                 type="number"
                                 step="0.01"
-                                value={editingProduct.originalPrice || ''}
-                                onChange={(e) =>
-                                    setEditingProduct({
-                                        ...editingProduct,
-                                        originalPrice: e.target.value ? parseFloat(e.target.value) : undefined
-                                    })
-                                }
+                                min="0"
+                                value={formData.originalPrice || ''}
+                                onChange={(e) => setFormData({
+                                    ...formData,
+                                    originalPrice: e.target.value ? parseFloat(e.target.value) : 0
+                                })}
                                 placeholder="Optional"
+                                disabled={isSubmitting}
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="edit-category">Category</Label>
+                            <Label htmlFor="edit-category">Category *</Label>
                             <Select
-                                value={editingProduct.category}
-                                onValueChange={(value) =>
-                                    setEditingProduct({ ...editingProduct, category: value })
-                                }
+                                value={formData.category}
+                                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                                disabled={isSubmitting}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Electronics">Electronics</SelectItem>
-                                    <SelectItem value="Fashion">Fashion</SelectItem>
-                                    <SelectItem value="Home & Kitchen">Home & Kitchen</SelectItem>
-                                    <SelectItem value="Health & Fitness">Health & Fitness</SelectItem>
+                                    <SelectItem value="electronics">Electronics</SelectItem>
+                                    <SelectItem value="furniture">Furniture</SelectItem>
+                                    <SelectItem value="beauty">Beauty</SelectItem>
+                                    <SelectItem value="clothing">Clothing</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -143,20 +273,27 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
                     <div className="form-grid">
                         <div className="form-field">
-                            <Label htmlFor="edit-stock">Stock Quantity</Label>
+                            <Label htmlFor="edit-stock">Stock Quantity *</Label>
                             <Input
                                 id="edit-stock"
                                 type="number"
-                                value={editingProduct.stockCount}
-                                onChange={(e) =>
-                                    setEditingProduct({
-                                        ...editingProduct,
-                                        stockCount: parseInt(e.target.value) || 0,
-                                        status: parseInt(e.target.value) > 0 ? 'active' : 'out_of_stock',
-                                    })
-                                }
+                                min="0"
+                                value={formData.stockCount}
+                                onChange={(e) => setFormData({ ...formData, stockCount: parseInt(e.target.value) || 0 })}
                                 required
+                                disabled={isSubmitting}
                             />
+                        </div>
+                        <div className="form-field">
+                            <Label htmlFor="edit-inStock" className="flex items-center gap-2">
+                                <span>In Stock</span>
+                                <Switch
+                                    id="edit-inStock"
+                                    checked={formData.inStock}
+                                    onCheckedChange={(checked) => setFormData({ ...formData, inStock: checked })}
+                                    disabled={isSubmitting}
+                                />
+                            </Label>
                         </div>
                     </div>
 
@@ -173,12 +310,10 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     <button
                                         type="button"
                                         className="remove-image-btn"
-                                        onClick={() => setEditingProduct(prev => ({
-                                            ...prev!,
-                                            images: prev!.images.filter((_, i) => i !== index)
-                                        }))}
+                                        onClick={() => handleRemoveImage(image)}
+                                        disabled={isSubmitting}
                                     >
-                                        <X className="remove-icon" />
+                                        <Trash2 className="remove-icon" />
                                     </button>
                                 </div>
                             ))}
@@ -187,8 +322,14 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 className="image-upload-label"
                             >
                                 <div className="upload-content">
-                                    <ImageIcon className="upload-icon" />
-                                    <p className="upload-text">Add Images</p>
+                                    {uploadingImages ? (
+                                        <div className="uploading-spinner">Uploading...</div>
+                                    ) : (
+                                        <>
+                                            <Upload className="upload-icon" />
+                                            <p className="upload-text">Add Images</p>
+                                        </>
+                                    )}
                                 </div>
                             </Label>
                             <Input
@@ -196,25 +337,26 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
-                                onChange={(e) => handleImageUpload(e, true)}
+                                onChange={handleImageUpload}
                                 multiple
+                                disabled={isSubmitting || uploadingImages}
                             />
                         </div>
                         <div className="image-note">
-                            JPEG, PNG, or WEBP (Max 2MB each)
+                            JPEG, PNG, or WEBP (Max 5MB each)
                         </div>
                     </div>
 
                     <div className="form-field">
-                        <Label htmlFor="edit-description">Description</Label>
+                        <Label htmlFor="edit-description">Description *</Label>
                         <Textarea
                             id="edit-description"
-                            value={editingProduct.description}
-                            onChange={(e) =>
-                                setEditingProduct({ ...editingProduct, description: e.target.value })
-                            }
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             rows={4}
                             required
+                            disabled={isSubmitting}
+                            placeholder="Describe your product in detail..."
                         />
                     </div>
 
@@ -225,43 +367,29 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEditingProduct(prev => ({
-                                    ...prev!,
-                                    features: [...prev!.features, '']
-                                }))}
+                                onClick={addFeatureField}
+                                disabled={isSubmitting}
                             >
                                 <Plus className="btn-icon" />
                                 Add Feature
                             </Button>
                         </div>
                         <div className="feature-list">
-                            {editingProduct.features.map((feature, index) => (
+                            {formData.features.map((feature, index) => (
                                 <div key={index} className="feature-item">
                                     <Input
                                         value={feature}
-                                        onChange={(e) => {
-                                            const newFeatures = [...editingProduct.features];
-                                            newFeatures[index] = e.target.value;
-                                            setEditingProduct({
-                                                ...editingProduct,
-                                                features: newFeatures
-                                            });
-                                        }}
+                                        onChange={(e) => updateFeature(index, e.target.value)}
                                         placeholder="Enter product feature"
+                                        disabled={isSubmitting}
                                     />
-                                    {editingProduct.features.length > 1 && (
+                                    {formData.features.length > 1 && (
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => {
-                                                const newFeatures = [...editingProduct.features];
-                                                newFeatures.splice(index, 1);
-                                                setEditingProduct({
-                                                    ...editingProduct,
-                                                    features: newFeatures.length > 0 ? newFeatures : ['']
-                                                });
-                                            }}
+                                            onClick={() => removeFeatureField(index)}
+                                            disabled={isSubmitting}
                                         >
                                             <X className="remove-icon" />
                                         </Button>
@@ -278,61 +406,34 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEditingProduct(prev => ({
-                                    ...prev!,
-                                    specifications: { ...prev!.specifications, '': '' }
-                                }))}
+                                onClick={addSpecificationField}
+                                disabled={isSubmitting}
                             >
                                 <Plus className="btn-icon" />
                                 Add Specification
                             </Button>
                         </div>
                         <div className="spec-list">
-                            {Object.entries(editingProduct.specifications).map(([key, value], index) => (
+                            {formData.specifications.map((spec, index) => (
                                 <div key={index} className="spec-item">
                                     <Input
-                                        className="spec-key"
-                                        value={key}
-                                        onChange={(e) => {
-                                            const newSpecs = { ...editingProduct.specifications };
-                                            delete newSpecs[key];
-                                            newSpecs[e.target.value] = value;
-                                            setEditingProduct({
-                                                ...editingProduct,
-                                                specifications: newSpecs
-                                            });
-                                        }}
-                                        placeholder="Spec name"
+                                        value={spec}
+                                        onChange={(e) => updateSpecification(index, e.target.value)}
+                                        placeholder="Enter specification (e.g., 65 inch, Super Oled Display)"
+                                        disabled={isSubmitting}
+                                        className="spec-input"
                                     />
-                                    <span className="spec-colon">:</span>
-                                    <Input
-                                        className="spec-value"
-                                        value={value}
-                                        onChange={(e) => {
-                                            const newSpecs = { ...editingProduct.specifications };
-                                            newSpecs[key] = e.target.value;
-                                            setEditingProduct({
-                                                ...editingProduct,
-                                                specifications: newSpecs
-                                            });
-                                        }}
-                                        placeholder="Spec value"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => {
-                                            const newSpecs = { ...editingProduct.specifications };
-                                            delete newSpecs[key];
-                                            setEditingProduct({
-                                                ...editingProduct,
-                                                specifications: Object.keys(newSpecs).length > 0 ? newSpecs : { '': '' }
-                                            });
-                                        }}
-                                    >
-                                        <X className="remove-icon" />
-                                    </Button>
+                                    {formData.specifications.length > 1 && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => removeSpecificationField(index)}
+                                            disabled={isSubmitting}
+                                        >
+                                            <X className="remove-icon" />
+                                        </Button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -343,11 +444,12 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                             type="button"
                             variant="outline"
                             onClick={() => setEditingProduct(null)}
+                            disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
-                        <Button type="submit">
-                            Save Changes
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Saving...' : 'Save Changes'}
                         </Button>
                     </div>
                 </form>

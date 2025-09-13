@@ -9,6 +9,9 @@ export interface Product {
     description?: string;
     rating: number;
     reviews: number;
+    stockCount: number;
+    features:string[];
+    specifications: string[];
 }
 
 export interface Review {

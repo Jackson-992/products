@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.tsx';
@@ -6,96 +6,116 @@ import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
-import { Product } from '@/hooks/product-data.ts';
+import { Product } from '@/types/Product';
+import { createProduct, uploadProductImage, updateProductImages } from '@/services/adminProductService';
 import './AddProductDialog.css';
 
 interface AddProductDialogProps {
-    setProducts: (products: Product[]) => void;
+    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+}
+
+interface ImageFile {
+    file: File;
+    previewUrl: string;
 }
 
 const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [newProduct, setNewProduct] = useState({
-        inStock: false,
         name: '',
         price: 0,
         originalPrice: undefined as number | undefined,
-        images: [] as string[],
-        category: '',
         stockCount: 0,
+        category: '',
         description: '',
         features: [''],
-        specifications: { '': '' }
+        specifications: ['']
     });
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isMultiple = false) => {
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const files = Array.from(e.target.files);
-            const readers = files.map(file => {
-                const reader = new FileReader();
-                return new Promise<string>((resolve) => {
-                    reader.onload = (event) => {
-                        if (event.target?.result) {
-                            resolve(event.target.result as string);
-                        }
-                    };
-                    reader.readAsDataURL(file);
-                });
-            });
+            const newImageFiles = files.map(file => ({
+                file,
+                previewUrl: URL.createObjectURL(file)
+            }));
 
-            Promise.all(readers).then((images) => {
-                if (isMultiple) {
-                    setNewProduct(prev => ({
-                        ...prev,
-                        images: [...prev.images, ...images]
-                    }));
-                } else {
-                    setNewProduct(prev => ({
-                        ...prev,
-                        images: [...images]
-                    }));
-                }
-            });
+            setImageFiles(prev => [...prev, ...newImageFiles]);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
-    const handleAddProduct = (e: React.FormEvent) => {
-        e.preventDefault();
-        const product: Product = {
-            ...newProduct,
-            id: Date.now().toString(),
-            status: newProduct.stockCount > 0 ? 'active' : 'out_of_stock',
-            rating: 0,
-            reviews: 0,
-            seller: {
-                name: 'My Store',
-                rating: 5,
-                totalSales: '0'
-            },
-            features: newProduct.features.filter(f => f.trim() !== ''),
-            specifications: Object.fromEntries(
-                Object.entries(newProduct.specifications)
-                    .filter(([key, value]) => key.trim() !== '' && value.trim() !== '')
-            ),
-        };
+    const removeImage = (index: number) => {
+        URL.revokeObjectURL(imageFiles[index].previewUrl);
+        setImageFiles(prev => prev.filter((_, i) => i !== index));
+    };
 
-        setProducts(prev => [...prev, product]);
-        setIsOpen(false);
-        resetNewProduct();
+    const uploadImages = async (): Promise<string[]> => {
+        if (imageFiles.length === 0) return [];
+
+        const uploadPromises = imageFiles.map(imageFile =>
+            uploadProductImage(imageFile.file)
+        );
+
+        return await Promise.all(uploadPromises);
+    };
+
+    const handleAddProduct = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+
+        try {
+            // First, upload all images
+            let uploadedImageUrls: string[] = [];
+            if (imageFiles.length > 0) {
+                uploadedImageUrls = await uploadImages();
+            }
+
+            // Then create the product with the image URLs
+            const product = await createProduct({
+                name: newProduct.name,
+                price: newProduct.price,
+                originalPrice: newProduct.originalPrice,
+                stockCount: newProduct.stockCount,
+                category: newProduct.category,
+                description: newProduct.description,
+                images: uploadedImageUrls, // Pass the uploaded image URLs
+                features: newProduct.features.filter(f => f.trim() !== ''),
+                specifications: newProduct.specifications.filter(s => s.trim() !== ''),
+                inStock: newProduct.stockCount > 0
+            });
+
+            setProducts(prev => [...prev, product]);
+            setIsOpen(false);
+            resetNewProduct();
+        } catch (error) {
+            console.error('Error adding product:', error);
+            alert('Failed to add product. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const resetNewProduct = () => {
+        imageFiles.forEach(imageFile => {
+            URL.revokeObjectURL(imageFile.previewUrl);
+        });
+        setImageFiles([]);
         setNewProduct({
-            inStock: false,
             name: '',
             price: 0,
             originalPrice: undefined,
-            images: [],
-            category: '',
             stockCount: 0,
+            category: '',
             description: '',
             features: [''],
-            specifications: { '': '' }
+            specifications: ['']
         });
     };
 
@@ -131,35 +151,35 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
     const addSpecificationField = () => {
         setNewProduct(prev => ({
             ...prev,
-            specifications: { ...prev.specifications, '': '' }
+            specifications: [...prev.specifications, '']
         }));
     };
 
-    const removeSpecificationField = (key: string) => {
+    const removeSpecificationField = (index: number) => {
         setNewProduct(prev => {
-            const newSpecs = { ...prev.specifications };
-            delete newSpecs[key];
+            const newSpecs = [...prev.specifications];
+            newSpecs.splice(index, 1);
             return {
                 ...prev,
-                specifications: Object.keys(newSpecs).length > 0 ? newSpecs : { '': '' }
+                specifications: newSpecs.length > 0 ? newSpecs : ['']
             };
         });
     };
 
-    const updateSpecification = (oldKey: string, newKey: string, value: string) => {
+    const updateSpecification = (index: number, value: string) => {
         setNewProduct(prev => {
-            const newSpecs = { ...prev.specifications };
-            if (oldKey !== newKey) {
-                delete newSpecs[oldKey];
-                newSpecs[newKey] = value;
-            } else {
-                newSpecs[newKey] = value;
-            }
+            const newSpecs = [...prev.specifications];
+            newSpecs[index] = value;
             return {
                 ...prev,
                 specifications: newSpecs
             };
         });
+    };
+
+    const handleDialogClose = () => {
+        resetNewProduct();
+        setIsOpen(false);
     };
 
     return (
@@ -177,23 +197,26 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                 <form onSubmit={handleAddProduct} className="form">
                     <div className="form-grid">
                         <div className="form-field">
-                            <Label htmlFor="name">Product Name</Label>
+                            <Label htmlFor="name">Product Name *</Label>
                             <Input
                                 id="name"
                                 value={newProduct.name}
                                 onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                                 required
+                                disabled={isLoading}
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="price">Price (Ksh)</Label>
+                            <Label htmlFor="price">Price (Ksh) *</Label>
                             <Input
                                 id="price"
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={newProduct.price || ''}
                                 onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })}
                                 required
+                                disabled={isLoading}
                             />
                         </div>
                     </div>
@@ -205,28 +228,31 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                 id="originalPrice"
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={newProduct.originalPrice || ''}
                                 onChange={(e) => setNewProduct({
                                     ...newProduct,
                                     originalPrice: e.target.value ? parseFloat(e.target.value) : undefined
                                 })}
                                 placeholder="Optional"
+                                disabled={isLoading}
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="category">Category</Label>
+                            <Label htmlFor="category">Category *</Label>
                             <Select
                                 value={newProduct.category}
                                 onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}
+                                disabled={isLoading}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Electronics">Electronics</SelectItem>
-                                    <SelectItem value="Fashion">Fashion</SelectItem>
-                                    <SelectItem value="Home & Kitchen">Home & Kitchen</SelectItem>
-                                    <SelectItem value="Health & Fitness">Health & Fitness</SelectItem>
+                                    <SelectItem value="electronics">electronics</SelectItem>
+                                    <SelectItem value="furniture">furniture</SelectItem>
+                                    <SelectItem value="beauty">beauty</SelectItem>
+                                    <SelectItem value="clothing">clothing</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -234,13 +260,15 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
 
                     <div className="form-grid">
                         <div className="form-field">
-                            <Label htmlFor="stock">Stock Quantity</Label>
+                            <Label htmlFor="stock">Stock Quantity *</Label>
                             <Input
                                 id="stock"
                                 type="number"
+                                min="0"
                                 value={newProduct.stockCount}
                                 onChange={(e) => setNewProduct({ ...newProduct, stockCount: parseInt(e.target.value) || 0 })}
                                 required
+                                disabled={isLoading}
                             />
                         </div>
                     </div>
@@ -248,20 +276,18 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                     <div className="form-field">
                         <Label>Product Images</Label>
                         <div className="image-grid">
-                            {newProduct.images.map((image, index) => (
+                            {imageFiles.map((imageFile, index) => (
                                 <div key={index} className="image-preview">
                                     <img
-                                        src={image}
+                                        src={imageFile.previewUrl}
                                         alt={`Preview ${index}`}
                                         className="preview-image"
                                     />
                                     <button
                                         type="button"
                                         className="remove-image-btn"
-                                        onClick={() => setNewProduct(prev => ({
-                                            ...prev,
-                                            images: prev.images.filter((_, i) => i !== index)
-                                        }))}
+                                        onClick={() => removeImage(index)}
+                                        disabled={isLoading}
                                     >
                                         <X className="remove-icon" />
                                     </button>
@@ -278,26 +304,30 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                             </Label>
                             <Input
                                 id="image-upload"
+                                ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
-                                onChange={(e) => handleImageUpload(e, true)}
+                                onChange={handleImageSelect}
                                 multiple
+                                disabled={isLoading}
                             />
                         </div>
                         <div className="image-note">
-                            JPEG, PNG, or WEBP (Max 2MB each)
+                            JPEG, PNG, or WEBP (Max 5MB each)
                         </div>
                     </div>
 
                     <div className="form-field">
-                        <Label htmlFor="description">Description</Label>
+                        <Label htmlFor="description">Description *</Label>
                         <Textarea
                             id="description"
                             value={newProduct.description}
                             onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                             rows={4}
                             required
+                            disabled={isLoading}
+                            placeholder="Describe your product in detail..."
                         />
                     </div>
 
@@ -309,6 +339,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                 variant="outline"
                                 size="sm"
                                 onClick={addFeatureField}
+                                disabled={isLoading}
                             >
                                 <Plus className="btn-icon" />
                                 Add Feature
@@ -321,6 +352,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                         value={feature}
                                         onChange={(e) => updateFeature(index, e.target.value)}
                                         placeholder="Enter product feature"
+                                        disabled={isLoading}
                                     />
                                     {newProduct.features.length > 1 && (
                                         <Button
@@ -328,6 +360,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => removeFeatureField(index)}
+                                            disabled={isLoading}
                                         >
                                             <X className="remove-icon" />
                                         </Button>
@@ -345,33 +378,29 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                 variant="outline"
                                 size="sm"
                                 onClick={addSpecificationField}
+                                disabled={isLoading}
                             >
                                 <Plus className="btn-icon" />
                                 Add Specification
                             </Button>
                         </div>
                         <div className="spec-list">
-                            {Object.entries(newProduct.specifications).map(([key, value], index) => (
+                            {newProduct.specifications.map((spec, index) => (
                                 <div key={index} className="spec-item">
                                     <Input
-                                        className="spec-key"
-                                        value={key}
-                                        onChange={(e) => updateSpecification(key, e.target.value, value)}
-                                        placeholder="Spec name"
+                                        value={spec}
+                                        onChange={(e) => updateSpecification(index, e.target.value)}
+                                        placeholder="Enter specification (e.g., 65 inch, Super Oled Display)"
+                                        disabled={isLoading}
+                                        className="spec-input"
                                     />
-                                    <span className="spec-colon">:</span>
-                                    <Input
-                                        className="spec-value"
-                                        value={value}
-                                        onChange={(e) => updateSpecification(key, key, e.target.value)}
-                                        placeholder="Spec value"
-                                    />
-                                    {Object.keys(newProduct.specifications).length > 1 && (
+                                    {newProduct.specifications.length > 1 && (
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => removeSpecificationField(key)}
+                                            onClick={() => removeSpecificationField(index)}
+                                            disabled={isLoading}
                                         >
                                             <X className="remove-icon" />
                                         </Button>
@@ -385,14 +414,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => {
-                                setIsOpen(false);
-                                resetNewProduct();
-                            }}
+                            onClick={handleDialogClose}
+                            disabled={isLoading}
                         >
                             Cancel
                         </Button>
-                        <Button type="submit">Add Product</Button>
+                        <Button type="submit" disabled={isLoading}>
+                            {isLoading ? 'Adding Product...' : 'Add Product'}
+                        </Button>
                     </div>
                 </form>
             </DialogContent>
