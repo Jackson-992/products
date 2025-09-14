@@ -178,13 +178,17 @@ export const deleteProductImages = async (imageUrls: string[]): Promise<void> =>
     if (!imageUrls || imageUrls.length === 0) return;
 
     try {
-        // Extract filenames from URLs
+        // Extract and decode filenames from URLs
         const fileNames = imageUrls.map(url => {
             const urlParts = url.split('/');
-            return urlParts[urlParts.length - 1]; // Get the last part (filename)
+            const encodedFileName = urlParts[urlParts.length - 1]; // Get the last part (filename)
+            // Remove query parameters and decode
+            return decodeURIComponent(encodedFileName.split('?')[0]);
         }).filter(Boolean);
 
         if (fileNames.length === 0) return;
+
+        console.log('Deleting files:', fileNames);
 
         // Delete files from storage
         const { error } = await supabase.storage
@@ -194,6 +198,8 @@ export const deleteProductImages = async (imageUrls: string[]): Promise<void> =>
         if (error) {
             console.warn('Could not delete some images from storage:', error);
             // Don't throw error here - we want to continue with product deletion
+        } else {
+            console.log('Successfully deleted all images from storage');
         }
 
     } catch (error) {
@@ -201,11 +207,43 @@ export const deleteProductImages = async (imageUrls: string[]): Promise<void> =>
         // Don't throw error - product deletion should continue
     }
 };
-
-// DELETE: Delete single image from product and storage
+// DELETE: Delete single image from product and storage (DEBUG VERSION)
 export const deleteProductImage = async (productId: number, imageUrl: string): Promise<void> => {
     try {
-        // First get the current product
+        // Extract filename from URL
+        let fileName = '';
+
+        if (imageUrl.includes('supabase.co/storage/v1/object/public/product-images/')) {
+            // Extract everything after the bucket path
+            const parts = imageUrl.split('product-images/');
+            fileName = parts[1] || '';
+        } else {
+            // Fallback method
+            fileName = imageUrl.split('/').pop() || '';
+        }
+
+        // Remove query parameters
+        fileName = fileName.split('?')[0];
+
+        // IMPORTANT: Decode the URL-encoded filename
+        fileName = decodeURIComponent(fileName);
+
+        console.log('Decoded filename:', fileName);
+
+        if (fileName) {
+            const { error: storageError } = await supabase.storage
+                .from("product-images")
+                .remove([fileName]);
+
+            if (storageError) {
+                console.error('Storage deletion error:', storageError);
+                // Don't throw here - we still want to remove it from the product
+            } else {
+                console.log('Successfully deleted from storage:', fileName);
+            }
+        }
+
+        // Update the product images array
         const { data: product, error: fetchError } = await supabase
             .from("products")
             .select("product_images")
@@ -214,28 +252,14 @@ export const deleteProductImage = async (productId: number, imageUrl: string): P
 
         if (fetchError) throw fetchError;
 
-        // Remove the image from the array
         const updatedImages = (product.product_images || []).filter(img => img !== imageUrl);
 
-        // Update the product
         const { error: updateError } = await supabase
             .from("products")
             .update({ product_images: updatedImages })
             .eq("id", productId);
 
         if (updateError) throw updateError;
-
-        // Delete the image from storage
-        const fileName = imageUrl.split('/').pop();
-        if (fileName) {
-            const { error: storageError } = await supabase.storage
-                .from("product-images")
-                .remove([fileName]);
-
-            if (storageError) {
-                console.warn('Could not delete image from storage:', storageError);
-            }
-        }
 
     } catch (error) {
         console.error('Error deleting product image:', error);
@@ -256,6 +280,7 @@ export const updateProduct = async (
         description?: string;
         features?: string[];
         specifications?: string[];
+        images?: string[]; // Add this line
     }
 ): Promise<void> => {
     const { error } = await supabase
@@ -266,7 +291,8 @@ export const updateProduct = async (
             originalprice: updates.originalPrice,
             stock_number: updates.stockCount,
             category: updates.category,
-            is_active: updates.inStock
+            is_active: updates.inStock,
+            product_images: updates.images // Add this line
         })
         .eq("id", productId);
 

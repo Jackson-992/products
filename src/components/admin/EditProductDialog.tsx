@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { Product } from '@/types/Product.ts';
-import { updateProduct, uploadProductImage, deleteProductImage, updateProductImages } from '@/services/adminProductService';
+import { updateProduct, uploadProductImage, deleteProductImage } from '@/services/adminProductService';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {
@@ -16,6 +16,12 @@ interface EditProductDialogProps {
     setEditingProduct: (product: Product | null) => void;
     setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
     refreshProducts: () => void;
+}
+
+interface ImageWithSource {
+    url: string;
+    isNew: boolean;
+    file?: File; // Only for new images
 }
 
 const EditProductDialog: React.FC<EditProductDialogProps> = ({
@@ -37,6 +43,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImages, setUploadingImages] = useState(false);
+    const [currentImages, setCurrentImages] = useState<ImageWithSource[]>([]);
 
     // Initialize form data when editingProduct changes
     useEffect(() => {
@@ -56,51 +63,42 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     : [''],
                 inStock: editingProduct.inStock !== undefined ? editingProduct.inStock : true
             });
+
+            // Initialize current images
+            setCurrentImages(
+                (editingProduct.images || []).map(url => ({
+                    url,
+                    isNew: false
+                }))
+            );
         }
     }, [editingProduct]);
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!editingProduct || !e.target.files || !e.target.files[0]) return;
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
 
-        try {
-            setUploadingImages(true);
-            const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files);
 
-            // Upload each image
-            const uploadPromises = files.map(file => uploadProductImage(file));
-            const uploadedUrls = await Promise.all(uploadPromises);
+        // Create preview URLs for immediate display
+        const newImages = files.map(file => ({
+            url: URL.createObjectURL(file),
+            isNew: true,
+            file
+        }));
 
-            // Update the product with new images using the correct function
-            const updatedImages = [...editingProduct.images, ...uploadedUrls];
-            await updateProductImages(editingProduct.id, updatedImages);
+        setCurrentImages(prev => [...prev, ...newImages]);
 
-            // Refresh the product list
-            refreshProducts();
-        } catch (error) {
-            console.error('Error uploading images:', error);
-            alert('Failed to upload images. Please try again.');
-        } finally {
-            setUploadingImages(false);
-        }
+        // Clear the input
+        e.target.value = '';
     };
 
-    const handleRemoveImage = async (imageUrl: string) => {
-        if (!editingProduct) return;
-
-        try {
-            // Remove image from product using the correct function
-            const updatedImages = editingProduct.images.filter(img => img !== imageUrl);
-            await updateProductImages(editingProduct.id, updatedImages);
-
-            // Delete image from storage
-            await deleteProductImage(editingProduct.id, imageUrl);
-
-            // Refresh the product list
-            refreshProducts();
-        } catch (error) {
-            console.error('Error removing image:', error);
-            alert('Failed to remove image. Please try again.');
+    const handleRemoveImage = (image: ImageWithSource) => {
+        if (image.isNew) {
+            // Revoke the blob URL to avoid memory leaks
+            URL.revokeObjectURL(image.url);
         }
+
+        setCurrentImages(prev => prev.filter(img => img.url !== image.url));
     };
 
     const addFeatureField = () => {
@@ -167,8 +165,54 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
         try {
             setIsSubmitting(true);
+            setUploadingImages(true);
 
-            // Prepare the update data (only the properties that updateProduct accepts)
+            // First, upload new images
+            const uploadedUrls = [];
+            const newImages = currentImages.filter(img => img.isNew);
+
+            for (const image of newImages) {
+                try {
+                    if (image.file) {
+                        const url = await uploadProductImage(image.file);
+                        uploadedUrls.push(url);
+
+                        // Revoke the blob URL now that we've uploaded the file
+                        URL.revokeObjectURL(image.url);
+                    }
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    alert(`Failed to upload image. Please try again.`);
+                }
+            }
+
+            // Identify images to delete (existing images that are no longer in currentImages)
+            const originalImageUrls = editingProduct.images || [];
+            const remainingImageUrls = currentImages
+                .filter(img => !img.isNew)
+                .map(img => img.url);
+
+            const imagesToDelete = originalImageUrls.filter(url =>
+                !remainingImageUrls.includes(url)
+            );
+
+            // Delete removed images
+            for (const imageUrl of imagesToDelete) {
+                try {
+                    await deleteProductImage(editingProduct.id, imageUrl);
+                } catch (error) {
+                    console.error('Error deleting image:', error);
+                    alert(`Failed to delete image. Please try again.`);
+                }
+            }
+
+            // Prepare the final image list
+            const finalImages = [
+                ...remainingImageUrls,
+                ...uploadedUrls
+            ];
+
+            // Prepare the update data
             const updateData = {
                 name: formData.name,
                 price: formData.price,
@@ -178,7 +222,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 inStock: formData.inStock,
                 description: formData.description,
                 features: formData.features.filter(f => f.trim() !== ''),
-                specifications: formData.specifications.filter(s => s.trim() !== '')
+                specifications: formData.specifications.filter(s => s.trim() !== ''),
+                images: finalImages
             };
 
             // Update the product
@@ -196,8 +241,20 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
             alert('Failed to update product. Please try again.');
         } finally {
             setIsSubmitting(false);
+            setUploadingImages(false);
         }
     };
+
+    // Clean up blob URLs when component unmounts
+    useEffect(() => {
+        return () => {
+            currentImages.forEach(image => {
+                if (image.isNew) {
+                    URL.revokeObjectURL(image.url);
+                }
+            });
+        };
+    }, [currentImages]);
 
     if (!editingProduct) return null;
 
@@ -300,10 +357,10 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     <div className="form-field">
                         <Label>Product Images</Label>
                         <div className="image-grid">
-                            {editingProduct.images.map((image, index) => (
+                            {currentImages.map((image, index) => (
                                 <div key={index} className="image-preview">
                                     <img
-                                        src={image}
+                                        src={image.url}
                                         alt={`Preview ${index}`}
                                         className="preview-image"
                                     />
