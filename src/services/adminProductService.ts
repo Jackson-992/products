@@ -1,7 +1,5 @@
-// src/services/ProductManagementService.ts
 import { supabase } from "./supabase";
 import { Product } from "../types/Product";
-import {data} from "autoprefixer";
 
 // CREATE: Add new product
 export const createProduct = async (productData: {
@@ -306,4 +304,36 @@ export const updateProduct = async (
             specifications: updates.specifications
         });
     }
+};
+// Add this function to your ProductManagementService.ts
+
+// FETCH: Get complete product details including description, features, specifications
+export const getProductDetails = async (productId: number): Promise<{
+    description?: string;
+    features?: string[];
+    specifications?: string[];
+}> => {
+    const { data, error } = await supabase
+        .from("details")
+        .select("description, features, specifications")
+        .eq("product_id", productId)
+        .single();
+
+    if (error) {
+        // If no details found, return empty object (not an error)
+        if (error.code === 'PGRST116') {
+            return {
+                description: '',
+                features: [''],
+                specifications: ['']
+            };
+        }
+        throw error;
+    }
+
+    return {
+        description: data.description || '',
+        features: data.features && data.features.length > 0 ? data.features : [''],
+        specifications: data.specifications && data.specifications.length > 0 ? data.specifications : ['']
+    };
 };

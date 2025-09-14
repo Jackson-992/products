@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { Product } from '@/types/Product.ts';
-import { updateProduct, uploadProductImage, deleteProductImage } from '@/services/adminProductService';
+import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails } from '@/services/adminProductService';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {
@@ -43,35 +43,64 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImages, setUploadingImages] = useState(false);
+    const [loadingDetails, setLoadingDetails] = useState(false);
     const [currentImages, setCurrentImages] = useState<ImageWithSource[]>([]);
 
     // Initialize form data when editingProduct changes
     useEffect(() => {
-        if (editingProduct) {
-            setFormData({
-                name: editingProduct.name || '',
-                price: editingProduct.price || 0,
-                originalPrice: editingProduct.originalPrice || 0,
-                stockCount: editingProduct.stockCount || 0,
-                category: editingProduct.category || '',
-                description: editingProduct.description || '',
-                features: editingProduct.features && editingProduct.features.length > 0
-                    ? editingProduct.features
-                    : [''],
-                specifications: editingProduct.specifications && editingProduct.specifications.length > 0
-                    ? editingProduct.specifications
-                    : [''],
-                inStock: editingProduct.inStock !== undefined ? editingProduct.inStock : true
-            });
+        const loadProductData = async () => {
+            if (editingProduct) {
+                setLoadingDetails(true);
 
-            // Initialize current images
-            setCurrentImages(
-                (editingProduct.images || []).map(url => ({
-                    url,
-                    isNew: false
-                }))
-            );
-        }
+                try {
+                    // First set the basic product data
+                    setFormData({
+                        name: editingProduct.name || '',
+                        price: editingProduct.price || 0,
+                        originalPrice: editingProduct.originalPrice || 0,
+                        stockCount: editingProduct.stockCount || 0,
+                        category: editingProduct.category || '',
+                        description: '', // Will be loaded from database
+                        features: [''], // Will be loaded from database
+                        specifications: [''], // Will be loaded from database
+                        inStock: editingProduct.inStock !== undefined ? editingProduct.inStock : true
+                    });
+
+                    // Initialize current images
+                    setCurrentImages(
+                        (editingProduct.images || []).map(url => ({
+                            url,
+                            isNew: false
+                        }))
+                    );
+
+                    // Fetch complete product details from database
+                    const productDetails = await getProductDetails(editingProduct.id);
+
+                    // Update form data with the fetched details
+                    setFormData(prevData => ({
+                        ...prevData,
+                        description: productDetails.description || '',
+                        features: productDetails.features || [''],
+                        specifications: productDetails.specifications || ['']
+                    }));
+
+                } catch (error) {
+                    console.error('Error loading product details:', error);
+                    // If there's an error, use empty defaults
+                    setFormData(prevData => ({
+                        ...prevData,
+                        description: '',
+                        features: [''],
+                        specifications: ['']
+                    }));
+                } finally {
+                    setLoadingDetails(false);
+                }
+            }
+        };
+
+        loadProductData();
     }, [editingProduct]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,6 +293,11 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 <DialogHeader>
                     <DialogTitle>Edit Product</DialogTitle>
                 </DialogHeader>
+
+                {loadingDetails && (
+                    <div className="loading-message">Loading product details...</div>
+                )}
+
                 <form onSubmit={handleSubmit} className="form">
                     <div className="form-grid">
                         <div className="form-field">
@@ -273,7 +307,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 required
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             />
                         </div>
                         <div className="form-field">
@@ -286,7 +320,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 value={formData.price || ''}
                                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                                 required
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             />
                         </div>
                     </div>
@@ -305,7 +339,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     originalPrice: e.target.value ? parseFloat(e.target.value) : 0
                                 })}
                                 placeholder="Optional"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             />
                         </div>
                         <div className="form-field">
@@ -313,7 +347,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                             <Select
                                 value={formData.category}
                                 onValueChange={(value) => setFormData({ ...formData, category: value })}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select category" />
@@ -338,7 +372,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 value={formData.stockCount}
                                 onChange={(e) => setFormData({ ...formData, stockCount: parseInt(e.target.value) || 0 })}
                                 required
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             />
                         </div>
                         <div className="form-field">
@@ -348,7 +382,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     id="edit-inStock"
                                     checked={formData.inStock}
                                     onCheckedChange={(checked) => setFormData({ ...formData, inStock: checked })}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || loadingDetails}
                                 />
                             </Label>
                         </div>
@@ -368,7 +402,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                         type="button"
                                         className="remove-image-btn"
                                         onClick={() => handleRemoveImage(image)}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || loadingDetails}
                                     >
                                         <Trash2 className="remove-icon" />
                                     </button>
@@ -396,7 +430,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 className="hidden"
                                 onChange={handleImageUpload}
                                 multiple
-                                disabled={isSubmitting || uploadingImages}
+                                disabled={isSubmitting || uploadingImages || loadingDetails}
                             />
                         </div>
                         <div className="image-note">
@@ -412,8 +446,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             rows={4}
                             required
-                            disabled={isSubmitting}
-                            placeholder="Describe your product in detail..."
+                            disabled={isSubmitting || loadingDetails}
+                            placeholder={loadingDetails ? "Loading description..." : "Describe your product in detail..."}
                         />
                     </div>
 
@@ -425,7 +459,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={addFeatureField}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             >
                                 <Plus className="btn-icon" />
                                 Add Feature
@@ -437,8 +471,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     <Input
                                         value={feature}
                                         onChange={(e) => updateFeature(index, e.target.value)}
-                                        placeholder="Enter product feature"
-                                        disabled={isSubmitting}
+                                        placeholder={loadingDetails ? "Loading..." : "Enter product feature"}
+                                        disabled={isSubmitting || loadingDetails}
                                     />
                                     {formData.features.length > 1 && (
                                         <Button
@@ -446,7 +480,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => removeFeatureField(index)}
-                                            disabled={isSubmitting}
+                                            disabled={isSubmitting || loadingDetails}
                                         >
                                             <X className="remove-icon" />
                                         </Button>
@@ -464,7 +498,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={addSpecificationField}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || loadingDetails}
                             >
                                 <Plus className="btn-icon" />
                                 Add Specification
@@ -476,8 +510,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     <Input
                                         value={spec}
                                         onChange={(e) => updateSpecification(index, e.target.value)}
-                                        placeholder="Enter specification (e.g., 65 inch, Super Oled Display)"
-                                        disabled={isSubmitting}
+                                        placeholder={loadingDetails ? "Loading..." : "Enter specification (e.g., 65 inch, Super Oled Display)"}
+                                        disabled={isSubmitting || loadingDetails}
                                         className="spec-input"
                                     />
                                     {formData.specifications.length > 1 && (
@@ -486,7 +520,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => removeSpecificationField(index)}
-                                            disabled={isSubmitting}
+                                            disabled={isSubmitting || loadingDetails}
                                         >
                                             <X className="remove-icon" />
                                         </Button>
@@ -501,12 +535,12 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                             type="button"
                             variant="outline"
                             onClick={() => setEditingProduct(null)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || loadingDetails}
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                        <Button type="submit" disabled={isSubmitting || loadingDetails}>
+                            {isSubmitting ? 'Saving...' : loadingDetails ? 'Loading...' : 'Save Changes'}
                         </Button>
                     </div>
                 </form>
