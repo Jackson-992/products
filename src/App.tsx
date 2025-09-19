@@ -14,6 +14,9 @@ import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import CartPage from "@/pages/CartPage.tsx";
 import MasterDashboard from "@/components/admin/MasterDashBoard.tsx";
+import AuthCallback from "@/pages/AuthCallBack.tsx";
+import ResetPassword from "@/pages/ResetPassword.tsx";
+import ProtectedRoute from "@/components/ProtectedRoute.tsx";
 
 const queryClient = new QueryClient();
 
@@ -49,11 +52,17 @@ const App = () => (
                         <Route path="/product/:id" element={<ProductDetails />} />
                         <Route path="/seller-dashboard" element={<SellerDashboard />} />
                         <Route path="/cart" element={<CartPage />} />
+                        <Route path="/auth/callback" element={<AuthCallback />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
                     </Route>
 
                     {/* Routes with minimal layout (no navbar/footer) */}
                     <Route element={<MinimalLayout />}>
-                        <Route path="/MD" element={<MasterDashboard />} />
+                        <Route path="/MD" element={
+                            <ProtectedRoute>
+                                <MasterDashboard/>
+                                </ProtectedRoute>
+                        } />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<SignUp />} />
                     </Route>
