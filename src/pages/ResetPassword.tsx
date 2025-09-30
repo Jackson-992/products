@@ -1,61 +1,76 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Lock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { supabase } from '@/services/supabase'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/services/supabase';
 
 const ResetPassword = () => {
-    const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const [message, setMessage] = useState<{type: string, text: string} | null>(null)
-    const navigate = useNavigate()
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        // Check if we're in a password reset context
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                // User is in password recovery mode
+        // Check if we have a session (user clicked the reset link)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session) {
+                setMessage({
+                    type: 'error',
+                    text: 'Invalid or expired reset link. Please request a new password reset.'
+                });
             }
-        })
-    }, [])
+        });
 
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
-        setMessage(null)
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                if (event === 'PASSWORD_RECOVERY') {
+                    // User is in password recovery mode
+                }
+            }
+        );
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage(null);
 
         if (password !== confirmPassword) {
-            setMessage({ type: 'error', text: 'Passwords do not match' })
-            setLoading(false)
-            return
+            setMessage({ type: 'error', text: 'Passwords do not match' });
+            setLoading(false);
+            return;
         }
 
         try {
             const { error } = await supabase.auth.updateUser({
                 password: password
-            })
+            });
 
-            if (error) throw error
+            if (error) throw error;
 
             setMessage({
                 type: 'success',
                 text: 'Password updated successfully!'
-            })
+            });
 
-            setTimeout(() => navigate('/login'), 2000)
+            // Redirect to login after a short delay
+            setTimeout(() => navigate('/login'), 2000);
 
-        } catch (error: any) {
-            setMessage({ type: 'error', text: error.message })
+        } catch (error) {
+            setMessage({ type: 'error', text: error.message });
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -93,6 +108,7 @@ const ResetPassword = () => {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="pl-10 pr-10"
                                         required
+                                        minLength={6}
                                     />
                                     <button
                                         type="button"
@@ -116,6 +132,7 @@ const ResetPassword = () => {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         className="pl-10 pr-10"
                                         required
+                                        minLength={6}
                                     />
                                     <button
                                         type="button"
@@ -139,7 +156,7 @@ const ResetPassword = () => {
                 </Card>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default ResetPassword
+export default ResetPassword;

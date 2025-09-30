@@ -96,7 +96,7 @@ export const getProductDetails = async (productId: string): Promise<{
         rating,
         comment,
         created_at,
-        users (
+        user_profiles (
           name
         )
       `)
@@ -136,7 +136,7 @@ export const getProductDetails = async (productId: string): Promise<{
         // Process reviews data
         const reviews: Review[] = (reviewsData || []).map((review: any) => ({
             id: review.id,
-            user: review.users?.name || "Anonymous",
+            user: review.user_profiles?.name || "Anonymous",
             rating: review.rating,
             comment: review.comment || "",
             date: new Date(review.created_at).toLocaleDateString("en-US", {
@@ -154,13 +154,59 @@ export const getProductDetails = async (productId: string): Promise<{
     }
 };
 
-// Alternative function if you want to fetch product and reviews separately
-export const getProductById = async (productId: string): Promise<ProductDetails | null> => {
-    const { product } = await getProductDetails(productId);
-    return product;
-};
+export const submitReview = async (productId: string, reviewData: {
+    rating: number;
+    comment: string;
+}): Promise<Review> => {
+    try {
+        // Get current user session
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-export const getReviewsByProductId = async (productId: string): Promise<Review[]> => {
-    const { reviews } = await getProductDetails(productId);
-    return reviews;
+        // First, get the user's profile to get the user_id (bigint)
+        const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('id, name, auth_id')
+            .eq('auth_id', user.id)
+            .single();
+
+        if (profileError || !profile) {
+            throw new Error('User profile not found. Please complete your profile.');
+        }
+
+        // Insert review into Supabase using the profile id (bigint) as user_id
+        const { data, error } = await supabase
+            .from('reviews')
+            .insert({
+                'user-id': profile.id, // Use the bigint ID from profiles table as user_id
+                product_id: productId,
+                rating: reviewData.rating,
+                comment: reviewData.comment,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        // Get user display name
+        const userName = profile.name || user.email?.split('@')[0] || "Current User";
+
+        const newReview: Review = {
+            id: data.id.toString(),
+            user: userName,
+            rating: parseFloat(data.rating),
+            comment: data.comment,
+            date: new Date(data.created_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+        };
+
+        return newReview;
+    } catch (error) {
+        console.error('Error submitting review:', error);
+        throw error;
+    }
 };

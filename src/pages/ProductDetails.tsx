@@ -1,32 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw } from 'lucide-react';
+import {ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, AlertCircle} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Loader from '@/components/Loader';
+import ReviewForm from './ReviewForm.tsx';
 import './Product-details.css';
-import { getProductDetails, ProductDetails } from "@/services/ProductService.ts";
-import {Review} from "@/types/Product.ts";
+import { getProductDetails, ProductDetails, submitReview } from "@/services/ProductService.ts";
+import { Review } from "@/types/Product.ts";
+import { supabase } from '@/services/supabase';
 
 const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const [loading, setLoading] = useState<boolean>(true);
+    const [productLoading, setProductLoading] = useState<boolean>(true); // Separate loading state for product
+    const [authLoading, setAuthLoading] = useState<boolean>(true); // Separate loading state for auth
     const [selectedImage, setSelectedImage] = useState<number>(0);
     const [quantity, setQuantity] = useState<number>(1);
     const [product, setProduct] = useState<ProductDetails | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+    const [user, setUser] = useState(null);
 
     useEffect(() => {
         const fetchProductDetails = async () => {
             if (!id) {
-                setLoading(false);
+                setProductLoading(false);
                 return;
             }
 
-            setLoading(true);
+            setProductLoading(true);
             try {
                 const { product: productData, reviews: reviewsData } = await getProductDetails(id);
                 setProduct(productData);
@@ -36,14 +41,81 @@ const ProductDetailsPage: React.FC = () => {
                 setProduct(null);
                 setReviews([]);
             } finally {
-                setLoading(false);
+                setProductLoading(false);
             }
         };
 
         fetchProductDetails();
     }, [id]);
 
-    if (loading) {
+    useEffect(() => {
+        // Get initial session
+        const getSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user ?? null);
+            setAuthLoading(false);
+        };
+
+        getSession();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+            // Don't set authLoading to false here since it's already been set
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Handle review submission
+// In your ProductDetailsPage component
+    const handleReviewSubmit = async (reviewData: { rating: number; comment: string }) => {
+        if (!id || !product) return;
+
+        // Quick check if user is logged in
+        if (!user) {
+            alert('Please log in to submit a review');
+            return;
+        }
+
+        setIsSubmittingReview(true);
+        try {
+            const newReview = await submitReview(id, reviewData);
+
+            // Add the new review to the local state
+            setReviews(prevReviews => [newReview, ...prevReviews]);
+
+            // Update product rating and review count
+            setProduct(prevProduct => {
+                if (!prevProduct) return null;
+
+                const newReviewCount = prevProduct.reviews + 1;
+                const newRating = ((prevProduct.rating * prevProduct.reviews) + reviewData.rating) / newReviewCount;
+
+                return {
+                    ...prevProduct,
+                    rating: parseFloat(newRating.toFixed(1)),
+                    reviews: newReviewCount
+                };
+            });
+
+            console.log('Review submitted successfully!');
+
+        } catch (error: any) {
+            console.error('Error submitting review:', error);
+
+            // Show appropriate error message
+            if (error.message.includes('logged in') || error.message.includes('auth')) {
+                alert('Please log in to submit a review');
+            } else {
+                alert('Failed to submit review. Please try again.');
+            }
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+    // Show loading spinner while product data is loading
+    if (productLoading) {
         return (
             <div className="loading-container">
                 <Loader />
@@ -51,6 +123,7 @@ const ProductDetailsPage: React.FC = () => {
         );
     }
 
+    // Show error if product not found (only after loading is complete)
     if (!product) {
         return (
             <div className="product-details-container">
@@ -64,6 +137,7 @@ const ProductDetailsPage: React.FC = () => {
                         Back to Products
                     </Button>
                     <div className="error-message">
+                        <AlertCircle className="error-icon" />
                         <h2>Product not found</h2>
                         <p>The product you're looking for doesn't exist or has been removed.</p>
                     </div>
@@ -284,7 +358,6 @@ const ProductDetailsPage: React.FC = () => {
                                     <dl className="specs-list">
                                         {Object.entries(product.specifications).map(([key, value]) => (
                                             <div key={key} className="spec-item">
-                                                {/*<dt className="spec-key">{key}</dt>*/}
                                                 <dd className="spec-value">{value}</dd>
                                             </div>
                                         ))}
@@ -297,42 +370,57 @@ const ProductDetailsPage: React.FC = () => {
                     </TabsContent>
 
                     <TabsContent value="reviews" className="tab-content">
-                        <Card className="reviews-card">
-                            <CardContent className="reviews-content">
-                                <h3 className="reviews-title">Customer Reviews</h3>
-                                {reviews.length > 0 ? (
-                                    <div className="reviews-list">
-                                        {reviews.map((review) => (
-                                            <div key={review.id} className="review-item">
-                                                <div className="review-header">
-                                                    <div className="reviewer-info">
-                                                        <span className="reviewer-name">{review.user}</span>
-                                                        <div className="review-stars">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <Star
-                                                                    key={i}
-                                                                    className={`review-star ${
-                                                                        i < review.rating
-                                                                            ? 'star-filled'
-                                                                            : 'star-empty'
-                                                                    }`}
-                                                                />
-                                                            ))}
+                        <div className="reviews-tab-content">
+                            {/* Review Form - Only show if user is logged in and auth has loaded */}
+                            {!authLoading && user && (
+                                <ReviewForm
+                                    productId={id!}
+                                    onSubmit={handleReviewSubmit}
+                                    isSubmitting={isSubmittingReview}
+
+                                />
+                            )}
+
+                            {/* Existing Reviews */}
+                            <Card className="reviews-card">
+                                <CardContent className="reviews-content">
+                                    <h3 className="reviews-title">Customer Reviews ({reviews.length})</h3>
+                                    {reviews.length > 0 ? (
+                                        <div className="reviews-list">
+                                            {reviews.map((review) => (
+                                                <div key={review.id} className="review-item">
+                                                    <div className="review-header">
+                                                        <div className="reviewer-info">
+                                                            <span className="reviewer-name">{review.user}</span>
+                                                            <div className="review-stars">
+                                                                {[...Array(5)].map((_, i) => (
+                                                                    <Star
+                                                                        key={i}
+                                                                        className={`review-star ${
+                                                                            i < review.rating
+                                                                                ? 'star-filled'
+                                                                                : 'star-empty'
+                                                                        }`}
+                                                                    />
+                                                                ))}
+                                                            </div>
                                                         </div>
+                                                        <span className="review-date">{review.date}</span>
                                                     </div>
-                                                    <span className="review-date">{review.date}</span>
+                                                    {review.comment && (
+                                                        <p className="review-comment">{review.comment}</p>
+                                                    )}
                                                 </div>
-                                                {review.comment && (
-                                                    <p className="review-comment">{review.comment}</p>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p>No reviews yet. Be the first to review this product!</p>
-                                )}
-                            </CardContent>
-                        </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="no-reviews-message">
+                                            No reviews yet. Be the first to review this product!
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>

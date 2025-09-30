@@ -43,11 +43,20 @@ const SignUp = () => {
                         first_name: formData.firstName,
                         last_name: formData.lastName,
                     },
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                    emailRedirectTo: `http://localhost:8080/auth/callback`,
                 },
             });
 
             if (error) throw error;
+
+            // Check if user already exists (Supabase returns user but no session for existing emails)
+            if (data.user && !data.session && data.user.identities?.length === 0) {
+                setMessage({
+                    type: 'error',
+                    text: 'An account with this email already exists. Please sign in instead.'
+                });
+                return;
+            }
 
             setMessage({
                 type: 'success',

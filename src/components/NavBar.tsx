@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, X, Heart, LogOut } from 'lucide-react';
+import {
+    Search,
+    ShoppingCart,
+    User,
+    Menu,
+    X,
+    Heart,
+    LogOut,
+    History,
+    HistoryIcon,
+    CreditCard,
+    Package
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -121,56 +133,67 @@ const Navbar = () => {
 
                         {/* Desktop Navigation */}
                         <div className="navbar-desktop-nav">
-                            <Button variant="ghost" size="sm" className="icon-button">
-                                <Heart className="h-5 w-5" />
-                            </Button>
-                            <Link to="/cart">
-                                <Button variant="ghost" size="sm" className="icon-button">
-                                    <ShoppingCart className="h-5 w-5" />
-                                </Button>
-                            </Link>
 
                             {user ? (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
-                                                <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                                            </Avatar>
+                                <>
+                                    <Link to="wishlist">
+                                        <Button variant="ghost" size="sm" className="icon-button">
+                                            <Heart className="h-5 w-5" />
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                                        <DropdownMenuLabel className="font-normal">
-                                            <div className="flex flex-col space-y-1">
-                                                <p className="text-sm font-medium leading-none">
-                                                    {user.user_metadata?.first_name && user.user_metadata?.last_name
-                                                        ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-                                                        : user.email
-                                                    }
-                                                </p>
-                                                <p className="text-xs leading-none text-muted-foreground">
-                                                    {user.email}
-                                                </p>
-                                            </div>
-                                        </DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem asChild>
-                                            <Link to="/profile">Profile</Link>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem asChild>
-                                            <Link to="/orders">Orders</Link>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem asChild>
-                                            <Link to="/wishlist">Wishlist</Link>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                                            <LogOut className="mr-2 h-4 w-4" />
-                                            <span>Log out</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    </Link>
+                                    <Link to="/cart">
+                                        <Button variant="ghost" size="sm" className="icon-button">
+                                            <ShoppingCart className="h-5 w-5" />
+                                        </Button>
+                                    </Link>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
+                                                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                                                </Avatar>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-56" align="end" forceMount>
+                                            <DropdownMenuLabel className="font-normal">
+                                                <div className="flex flex-col space-y-1">
+                                                    <p className="text-sm font-medium leading-none">
+                                                        {user.user_metadata?.first_name && user.user_metadata?.last_name
+                                                            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+                                                            : user.email
+                                                        }
+                                                    </p>
+                                                    <p className="text-xs leading-none text-muted-foreground">
+                                                        {user.email}
+                                                    </p>
+                                                </div>
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {/*<DropdownMenuItem asChild>*/}
+                                            {/*    <Link to="/profile">Profile</Link>*/}
+                                            {/*</DropdownMenuItem>*/}
+                                            <DropdownMenuItem asChild>
+                                                <Link to="/cart">Shopping Cart</Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                <Link to="/wishlist">Wishlist</Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                <Link to="/orders">Orders</Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                <Link to="/history">History</Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                                                <LogOut className="mr-2 h-4 w-4" />
+                                                <span>Log out</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+
+                                </>
                             ) : (
                                 <>
                                     <Link to="/signup">
@@ -287,17 +310,17 @@ const Navbar = () => {
                                     </Link>
 
                                     <div className="border-t pt-2 mt-2">
-                                        <Link to="/profile" onClick={closeMobileMenu}>
+                                        <Link to="/orders" onClick={closeMobileMenu}>
                                             <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                                <User className="mr-3 h-4 w-4" />
-                                                Profile
+                                                <Package className="mr-3 h-4 w-4" />
+                                                Orders
                                             </Button>
                                         </Link>
 
-                                        <Link to="/orders" onClick={closeMobileMenu}>
+                                        <Link to="/history" onClick={closeMobileMenu}>
                                             <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                                <ShoppingCart className="mr-3 h-4 w-4" />
-                                                Orders
+                                                <CreditCard className="mr-3 h-4 w-4" />
+                                                History
                                             </Button>
                                         </Link>
                                     </div>

@@ -1,0 +1,146 @@
+/* ReviewForm.css */
+.review-form-card {
+    margin-bottom: 2rem;
+}
+
+.review-form-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+}
+
+.review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.rating-input-section {
+    margin-bottom: 0.5rem;
+}
+
+.rating-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: #374151;
+}
+
+.rating-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.numeric-rating-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 200px;
+}
+
+.rating-number-input {
+    width: 80px;
+    text-align: center;
+}
+
+.rating-scale {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.stars-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stars-label {
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.stars-input {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.star-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: transform 0.2s;
+}
+
+.star-button:hover {
+    transform: scale(1.1);
+}
+
+.star-input-icon {
+    width: 2rem;
+    height: 2rem;
+    transition: color 0.2s;
+}
+
+.star-input-icon.star-filled {
+    color: #fbbf24;
+    fill: #fbbf24;
+}
+
+.star-input-icon.star-empty {
+    color: #d1d5db;
+}
+
+.current-rating-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.comment-input {
+    display: flex;
+    flex-direction: column;
+}
+
+.comment-label {
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: #374151;
+}
+
+.comment-textarea {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.comment-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    ring: 2px;
+    ring-color: #3b82f6;
+}
+
+.submit-review-button {
+    align-self: flex-start;
+}
+
+/* Responsive design */
+@media (min-width: 768px) {
+    .rating-controls {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 2rem;
+    }
+
+    .stars-display {
+        flex: 1;
+    }
+}

@@ -12,11 +12,12 @@ import SellerDashboard from "./pages/SellerDashboard";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
-import CartPage from "@/pages/CartPage.tsx";
+import CartPage from "@/pages/UserProfile/CartPage.tsx";
 import MasterDashboard from "@/components/admin/MasterDashBoard.tsx";
 import AuthCallback from "@/pages/AuthCallBack.tsx";
 import ResetPassword from "@/pages/ResetPassword.tsx";
 import ProtectedRoute from "@/components/ProtectedRoute.tsx";
+import WishList  from "@/pages/UserProfile/WishList.tsx";
 
 const queryClient = new QueryClient();
 
@@ -51,9 +52,15 @@ const App = () => (
                         <Route path="/products" element={<ProductList />} />
                         <Route path="/product/:id" element={<ProductDetails />} />
                         <Route path="/seller-dashboard" element={<SellerDashboard />} />
-                        <Route path="/cart" element={<CartPage />} />
+                        <Route path="/cart" element={
+                            <ProtectedRoute>
+                                <CartPage />
+                            </ProtectedRoute>} />
+                        <Route path="/wishlist" element={
+                            <ProtectedRoute>
+                                <WishList />
+                            </ProtectedRoute>} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
-                        <Route path="/reset-password" element={<ResetPassword />} />
                     </Route>
 
                     {/* Routes with minimal layout (no navbar/footer) */}
@@ -65,6 +72,7 @@ const App = () => (
                         } />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<SignUp />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
                     </Route>
 
                     {/* Catch-all route */}

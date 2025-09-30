@@ -53,7 +53,7 @@ const Login = () => {
 
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-                redirectTo: `${window.location.origin}/reset-password`,
+                redirectTo: `http://localhost:8080/reset-password`,
             })
 
             if (error) throw error

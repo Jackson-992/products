@@ -12,7 +12,7 @@ const AuthCallback = () => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 setMessage('Success! Your email has been verified.')
-                setTimeout(() => navigate('/dashboard'), 2000)
+                setTimeout(() => navigate('/'), 2000)
             } else {
                 setMessage('Unable to verify your email. Please try again.')
             }
