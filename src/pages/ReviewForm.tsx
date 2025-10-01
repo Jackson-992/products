@@ -4,6 +4,8 @@ import {Star} from 'lucide-react';
 import {Card, CardContent} from "@/components/ui/card.tsx";
 import {Input} from '@/components/ui/input';
 import './ReviewForm.css';
+import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+
 
 interface ReviewFormProps {
     productId: string,
@@ -16,6 +18,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({productId, onSubmit, isSubmittin
     const [comment, setComment] = useState<string>('');
     const [hoveredRating, setHoveredRating] = useState<number>(0);
     const [ratingInput, setRatingInput] = useState<string>('');
+    const { toast } = useToast(); // Initialize toast
 
     // Sync the numeric input with the rating state
     useEffect(() => {
@@ -113,7 +116,11 @@ const ReviewForm: React.FC<ReviewFormProps> = ({productId, onSubmit, isSubmittin
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (rating === 0) {
-            alert('Please select a rating between 0.1 and 5.0');
+            toast({
+                title: "Select a rating",
+                description: "Ensure you select a rating of at least 1.0 upto 5.0",
+                variant: "default",
+            });
             return;
         }
 

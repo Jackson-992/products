@@ -274,15 +274,15 @@ const ContactUs = () => {
                         <div className="info-content">
                             <h4>Response Time</h4>
                             <p>Phone: Immediate</p>
-                            <p>Live Chat: Under 2 minutes</p>
-                            <p>Email: Within 2 hours</p>
+                            <p>Live Chat: Under 20 minutes</p>
+                            <p>Email: Within 12 hours</p>
                         </div>
                     </div>
                     <div className="info-card">
                         <MessageCircle className="info-icon" />
                         <div className="info-content">
                             <h4>Support Languages</h4>
-                            <p>English, Swahili, French</p>
+                            <p>English & Swahili</p>
                             <p>Multilingual support available</p>
                         </div>
                     </div>

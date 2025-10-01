@@ -1,80 +1,153 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import './cart.css'
+import {
+    fetchCartItems,
+    removeFromCart,
+    clearCart,
+    updateCartQuantity
+} from '@/services/CartServices.ts';
+import { supabase } from '@/services/supabase.ts';
+import './cart.css';
 
 const Cart = () => {
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [userProfile, setUserProfile] = useState(null);
 
-    // Mock data - replace with actual data from your backend
-    const mockCartItems = [
-        {
-            id: 1,
-            productId: 101,
-            name: "Wireless Bluetooth Headphones",
-            price: 7999,
-            originalPrice: 9999,
-            image: "/api/placeholder/300/300",
-            quantity: 2,
-            inStock: true,
-            maxStock: 10,
-            category: "Electronics"
-        },
-        {
-            id: 2,
-            productId: 102,
-            name: "Smart Fitness Watch",
-            price: 12999,
-            originalPrice: 15999,
-            image: "/api/placeholder/300/300",
-            quantity: 1,
-            inStock: true,
-            maxStock: 5,
-            category: "Electronics"
-        },
-        {
-            id: 3,
-            productId: 103,
-            name: "Organic Cotton T-Shirt",
-            price: 1499,
-            originalPrice: 1999,
-            image: "/api/placeholder/300/300",
-            quantity: 3,
-            inStock: true,
-            maxStock: 20,
-            category: "Clothing"
-        }
-    ];
-
+    // Get user profile with integer ID
     useEffect(() => {
-        // Simulate API call to fetch cart items
-        setTimeout(() => {
-            setCartItems(mockCartItems);
-            setLoading(false);
-        }, 1000);
+        const getUserProfile = async () => {
+            try {
+                // First get the auth user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Then get the user profile with integer ID
+                const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('auth_id', user.id) // or whatever links to auth.users
+                    .single();
+
+                if (error) throw error;
+                setUserProfile(profile);
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                setLoading(false);
+            }
+        };
+
+        getUserProfile();
     }, []);
 
-    const updateQuantity = (itemId, newQuantity) => {
-        if (newQuantity < 1) return;
+    // Fetch cart items from Supabase
+    const loadCartItems = async () => {
+        if (!userProfile) return;
 
-        setCartItems(prev => prev.map(item =>
-            item.id === itemId
-                ? { ...item, quantity: Math.min(newQuantity, item.maxStock) }
-                : item
-        ));
+        try {
+            setLoading(true);
+            const result = await fetchCartItems(userProfile.id); // Use integer ID from user_profiles
+
+            if (result.success) {
+                // Transform the data to match your component structure
+                const transformedData = result.data.map(item => ({
+                    id: item.cart_item_id || item.id,
+                    productId: item.product_id,
+                    name: item.products.name,
+                    price: item.products.price,
+                    originalPrice: item.products.originalprice || item.products.price,
+                    image: item.products.product_images ? item.products.product_images[0] : '/api/placeholder/300/300',
+                    quantity: item.quantity,
+                    inStock: item.products.stock_number > 0,
+                    maxStock: item.products.stock_number || 10,
+                    category: item.products.category
+                }));
+
+                setCartItems(transformedData);
+            } else {
+                console.error('Error loading cart:', result.error);
+            }
+        } catch (error) {
+            console.error('Error loading cart items:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const removeFromCart = (itemId) => {
-        setCartItems(prev => prev.filter(item => item.id !== itemId));
-        // Here you would also call your API to remove from backend
+    useEffect(() => {
+        if (userProfile) {
+            loadCartItems();
+        }
+    }, [userProfile]);
+
+    // Handle quantity updates
+    const handleUpdateQuantity = async (productId, newQuantity) => {
+        if (!userProfile) return;
+        if (newQuantity < 1) return;
+
+        const result = await updateCartQuantity(userProfile.id, productId, newQuantity);
+        if (result.success) {
+            // Update local state
+            setCartItems(prev => prev.map(item =>
+                item.productId === productId
+                    ? { ...item, quantity: newQuantity }
+                    : item
+            ));
+        } else {
+            console.error('Failed to update quantity:', result.error);
+        }
+    };
+
+    // Handle remove item
+    const handleRemoveItem = async (productId) => {
+        if (!userProfile) return;
+
+        const result = await removeFromCart(userProfile.id, productId);
+        if (result.success) {
+            // Update local state
+            setCartItems(prev => prev.filter(item => item.productId !== productId));
+        } else {
+            console.error('Failed to remove item:', result.error);
+        }
+    };
+
+    // Handle clear cart
+    const handleClearCart = async () => {
+        if (!userProfile) return;
+
+        const result = await clearCart(userProfile.id);
+        if (result.success) {
+            setCartItems([]);
+        } else {
+            console.error('Failed to clear cart:', result.error);
+        }
+    };
+
+    // Handle decrement quantity
+    const handleDecrement = async (productId, currentQuantity) => {
+        if (currentQuantity === 1) {
+            await handleRemoveItem(productId);
+        } else {
+            await handleUpdateQuantity(productId, currentQuantity - 1);
+        }
+    };
+
+    // Handle increment quantity
+    const handleIncrement = async (productId, currentQuantity, maxStock) => {
+        if (currentQuantity < maxStock) {
+            await handleUpdateQuantity(productId, currentQuantity + 1);
+        }
     };
 
     const moveToWishlist = (item) => {
         // Move to wishlist logic here
         console.log('Moving to wishlist:', item);
-        removeFromCart(item.id);
+        handleRemoveItem(item.productId);
     };
 
     const calculateItemTotal = (price, quantity) => {
@@ -106,6 +179,22 @@ const Cart = () => {
                 <div className="cart-loading">
                     <div className="loading-spinner"></div>
                     <p>Loading your cart...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!userProfile) {
+        return (
+            <div className="cart-container">
+                <div className="empty-cart">
+                    <h2>Please log in to view your cart</h2>
+                    <button
+                        className="continue-shopping-btn"
+                        onClick={() => navigate('/login')}
+                    >
+                        Login
+                    </button>
                 </div>
             </div>
         );
@@ -149,7 +238,7 @@ const Cart = () => {
                                 <h2>Cart Items</h2>
                                 <button
                                     className="clear-cart-btn"
-                                    onClick={() => setCartItems([])}
+                                    onClick={handleClearCart}
                                 >
                                     <Trash2 size={16} />
                                     Clear Cart
@@ -172,7 +261,7 @@ const Cart = () => {
                                                 <h3 className="item-name">{item.name}</h3>
                                                 <button
                                                     className="remove-item-btn"
-                                                    onClick={() => removeFromCart(item.id)}
+                                                    onClick={() => handleRemoveItem(item.productId)}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -203,7 +292,7 @@ const Cart = () => {
                                                     <div className="quantity-buttons">
                                                         <button
                                                             className="quantity-btn"
-                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                            onClick={() => handleDecrement(item.productId, item.quantity)}
                                                             disabled={item.quantity <= 1}
                                                         >
                                                             <Minus size={16} />
@@ -211,7 +300,7 @@ const Cart = () => {
                                                         <span className="quantity-value">{item.quantity}</span>
                                                         <button
                                                             className="quantity-btn"
-                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            onClick={() => handleIncrement(item.productId, item.quantity, item.maxStock)}
                                                             disabled={item.quantity >= item.maxStock}
                                                         >
                                                             <Plus size={16} />

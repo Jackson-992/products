@@ -11,18 +11,24 @@ import './Product-details.css';
 import { getProductDetails, ProductDetails, submitReview } from "@/services/ProductService.ts";
 import { Review } from "@/types/Product.ts";
 import { supabase } from '@/services/supabase';
+import { addToCart } from '@/services/CartServices'; // Import the addToCart function
+import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+
 
 const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { toast } = useToast(); // Initialize toast
     const navigate = useNavigate();
-    const [productLoading, setProductLoading] = useState<boolean>(true); // Separate loading state for product
-    const [authLoading, setAuthLoading] = useState<boolean>(true); // Separate loading state for auth
+    const [productLoading, setProductLoading] = useState<boolean>(true);
+    const [authLoading, setAuthLoading] = useState<boolean>(true);
     const [selectedImage, setSelectedImage] = useState<number>(0);
     const [quantity, setQuantity] = useState<number>(1);
     const [product, setProduct] = useState<ProductDetails | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
     const [user, setUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null); // Add userProfile state
+    const [addingToCart, setAddingToCart] = useState<boolean>(false); // Loading state for add to cart
 
     useEffect(() => {
         const fetchProductDetails = async () => {
@@ -49,30 +55,135 @@ const ProductDetailsPage: React.FC = () => {
     }, [id]);
 
     useEffect(() => {
-        // Get initial session
-        const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-            setAuthLoading(false);
+        // Get initial session and user profile
+        const getSessionAndProfile = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                setUser(session?.user ?? null);
+
+                // If user is logged in, get their profile with integer ID
+                if (session?.user) {
+                    const { data: profile, error } = await supabase
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('auth_id', session.user.id) // Adjust this to match your column name
+                        .single();
+
+                    if (error) {
+                        console.error('Error fetching user profile:', error);
+                    } else {
+                        setUserProfile(profile);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in session setup:', error);
+            } finally {
+                setAuthLoading(false);
+            }
         };
 
-        getSession();
+        getSessionAndProfile();
 
         // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setUser(session?.user ?? null);
-            // Don't set authLoading to false here since it's already been set
+
+            // Update user profile when auth changes
+            if (session?.user) {
+                const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('auth_id', session.user.id)
+                    .single();
+
+                if (!error) {
+                    setUserProfile(profile);
+                }
+            } else {
+                setUserProfile(null);
+            }
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    // Handle review submission
-// In your ProductDetailsPage component
+    // Add to Cart Handler
+    const handleAddToCart = async () => {
+        if (!product || !id) return;
+
+        // Check if user is logged in
+        if (!user || !userProfile) {
+            toast({
+                title: "Login Required",
+                description: "Please log in to add items to your cart",
+                variant: "destructive",
+                action: (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => navigate('/login')}
+                    >
+                        Login
+                    </Button>
+                ),
+            });
+            return;
+        }
+
+        // Check if product is in stock
+        if (!product.inStock) {
+            toast({
+                title: "Out of Stock",
+                description: "This product is out of stock and no longer available for purchase.",
+                variant: "default",
+                // action: (
+                //     <Button
+                //         variant="default"
+                //         size="sm"
+                //         onClick={() => navigate('/login')}
+                //     >
+                //         Login
+                //     </Button>
+                // ),
+            });
+            return;
+        }
+
+        setAddingToCart(true);
+        try {
+            const result = await addToCart(userProfile.id, parseInt(id), quantity);
+
+            if (result.success) {
+                toast({
+                    title: "Added to Cart!",
+                    description: `${product.name} has been added to your cart`,
+                    variant: "default",
+                    duration: 3000,
+                });
+
+            } else {
+                //console.error('Failed to add to cart:', result.error);
+                toast({
+                    title: "Error adding to cart",
+                    description: "Failed to add item to cart. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            toast({
+                title: "Error adding to cart",
+                description: "Failed to add item to cart. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setAddingToCart(false);
+        }
+    };
+
     const handleReviewSubmit = async (reviewData: { rating: number; comment: string }) => {
         if (!id || !product) return;
 
-        // Quick check if user is logged in
         if (!user) {
             alert('Please log in to submit a review');
             return;
@@ -82,10 +193,8 @@ const ProductDetailsPage: React.FC = () => {
         try {
             const newReview = await submitReview(id, reviewData);
 
-            // Add the new review to the local state
             setReviews(prevReviews => [newReview, ...prevReviews]);
 
-            // Update product rating and review count
             setProduct(prevProduct => {
                 if (!prevProduct) return null;
 
@@ -100,20 +209,29 @@ const ProductDetailsPage: React.FC = () => {
             });
 
             console.log('Review submitted successfully!');
+            toast({
+                title: "Review added",
+                description: "Your review has been added.",
+                variant: "default",
+            });
 
         } catch (error: any) {
             console.error('Error submitting review:', error);
 
-            // Show appropriate error message
             if (error.message.includes('logged in') || error.message.includes('auth')) {
                 alert('Please log in to submit a review');
             } else {
-                alert('Failed to submit review. Please try again.');
+                toast({
+                    title: "Error submitting review",
+                    description: "Failed to submit your review. Try again later.",
+                    variant: "destructive",
+                });
             }
         } finally {
             setIsSubmittingReview(false);
         }
     };
+
     // Show loading spinner while product data is loading
     if (productLoading) {
         return (
@@ -123,7 +241,7 @@ const ProductDetailsPage: React.FC = () => {
         );
     }
 
-    // Show error if product not found (only after loading is complete)
+    // Show error if product not found
     if (!product) {
         return (
             <div className="product-details-container">
@@ -256,6 +374,7 @@ const ProductDetailsPage: React.FC = () => {
                                         <button
                                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
                                             className="quantity-button"
+                                            disabled={quantity <= 1}
                                         >
                                             -
                                         </button>
@@ -263,6 +382,7 @@ const ProductDetailsPage: React.FC = () => {
                                         <button
                                             onClick={() => setQuantity(Math.min(product.stockCount, quantity + 1))}
                                             className="quantity-button"
+                                            disabled={quantity >= product.stockCount}
                                         >
                                             +
                                         </button>
@@ -276,10 +396,20 @@ const ProductDetailsPage: React.FC = () => {
                             <Button
                                 size="lg"
                                 className="add-to-cart-button"
-                                disabled={!product.inStock}
+                                disabled={!product.inStock || addingToCart}
+                                onClick={handleAddToCart}
                             >
-                                <ShoppingCart className="cart-icon" />
-                                Add to Cart
+                                {addingToCart ? (
+                                    <>
+                                        <div className="spinner"></div>
+                                        Adding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShoppingCart className="cart-icon" />
+                                        Add to Cart
+                                    </>
+                                )}
                             </Button>
                             <div className="secondary-buttons">
                                 <Button variant="outline" size="lg" className="wishlist-button">
@@ -377,7 +507,6 @@ const ProductDetailsPage: React.FC = () => {
                                     productId={id!}
                                     onSubmit={handleReviewSubmit}
                                     isSubmitting={isSubmittingReview}
-
                                 />
                             )}
 
