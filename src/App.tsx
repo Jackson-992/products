@@ -18,6 +18,8 @@ import AuthCallback from "@/pages/AuthCallBack.tsx";
 import ResetPassword from "@/pages/ResetPassword.tsx";
 import ProtectedRoute from "@/components/ProtectedRoute.tsx";
 import WishList  from "@/pages/UserProfile/WishList.tsx";
+import Orders from "@/pages/UserProfile/Orders.tsx";
+import ContactUs from "@/pages/UserProfile/ContactUs.tsx"
 
 const queryClient = new QueryClient();
 
@@ -59,6 +61,14 @@ const App = () => (
                         <Route path="/wishlist" element={
                             <ProtectedRoute>
                                 <WishList />
+                            </ProtectedRoute>} />
+                        <Route path="/orders" element={
+                            <ProtectedRoute>
+                                <Orders />
+                            </ProtectedRoute>} />
+                        <Route path="/contact_us" element={
+                            <ProtectedRoute>
+                                <ContactUs/>
                             </ProtectedRoute>} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                     </Route>

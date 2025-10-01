@@ -11,7 +11,7 @@ import {
     History,
     HistoryIcon,
     CreditCard,
-    Package
+    Package, MessageCircle, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -183,7 +183,7 @@ const Navbar = () => {
                                                 <Link to="/orders">Orders</Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem asChild>
-                                                <Link to="/history">History</Link>
+                                                <Link to="/contact_us">Contact Us</Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
@@ -317,10 +317,10 @@ const Navbar = () => {
                                             </Button>
                                         </Link>
 
-                                        <Link to="/history" onClick={closeMobileMenu}>
+                                        <Link to="/contact_us" onClick={closeMobileMenu}>
                                             <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                                <CreditCard className="mr-3 h-4 w-4" />
-                                                History
+                                                <Phone className="mr-3 h-4 w-4" />
+                                                Contact Us
                                             </Button>
                                         </Link>
                                     </div>
