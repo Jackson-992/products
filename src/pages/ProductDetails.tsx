@@ -13,6 +13,7 @@ import { Review } from "@/types/Product.ts";
 import { supabase } from '@/services/supabase';
 import { addToCart } from '@/services/CartServices'; // Import the addToCart function
 import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import {addToWishList} from "@/services/WishlistSerices.ts";
 
 
 const ProductDetailsPage: React.FC = () => {
@@ -29,6 +30,7 @@ const ProductDetailsPage: React.FC = () => {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null); // Add userProfile state
     const [addingToCart, setAddingToCart] = useState<boolean>(false); // Loading state for add to cart
+    const [addingToWish, setAddingToWish] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchProductDetails = async () => {
@@ -136,15 +138,7 @@ const ProductDetailsPage: React.FC = () => {
                 title: "Out of Stock",
                 description: "This product is out of stock and no longer available for purchase.",
                 variant: "default",
-                // action: (
-                //     <Button
-                //         variant="default"
-                //         size="sm"
-                //         onClick={() => navigate('/login')}
-                //     >
-                //         Login
-                //     </Button>
-                // ),
+
             });
             return;
         }
@@ -178,6 +172,58 @@ const ProductDetailsPage: React.FC = () => {
             });
         } finally {
             setAddingToCart(false);
+        }
+    };
+
+    const handleAddToWishlist = async () => {
+        if (!product || !id) return;
+
+        // Check if user is logged in
+        if (!user || !userProfile) {
+            toast({
+                title: "Login Required",
+                description: "Please log in to add items to your wishlist",
+                variant: "destructive",
+                action: (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => navigate('/login')}
+                    >
+                        Login
+                    </Button>
+                ),
+            });
+            return;
+        }
+
+        setAddingToWish(true);
+        try {
+            const result = await addToWishList(userProfile.id, parseInt(id));
+
+            if (result.success) {
+                toast({
+                    title: "Added to Wishlist!",
+                    description: `${product.name} has been added to your wishlist`,
+                    variant: "default",
+                    duration: 3000,
+                });
+            } else {
+                toast({
+                    title: "Error adding to wishlist",
+                    description: "Failed to add item to wishlist. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error('Error adding to wishlist:', error);
+            toast({
+                title: "Error adding to wishlist",
+                description: "Failed to add item to wishlist. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setAddingToWish(false);
         }
     };
 
@@ -412,9 +458,24 @@ const ProductDetailsPage: React.FC = () => {
                                 )}
                             </Button>
                             <div className="secondary-buttons">
-                                <Button variant="outline" size="lg" className="wishlist-button">
-                                    <Heart className="wishlist-icon" />
-                                    Save
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    className="wishlist-button"
+                                    onClick={handleAddToWishlist}
+                                    disabled={addingToWish}
+                                >
+                                    {addingToWish ? (
+                                        <>
+                                            <div className="spinner"></div>
+                                            Adding...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Heart className="wishlist-icon" />
+                                            Save
+                                        </>
+                                    )}
                                 </Button>
                                 <Button variant="outline" size="lg" className="buy-now-button">
                                     Buy Now

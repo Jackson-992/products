@@ -1,84 +1,226 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, ShoppingCart, Trash2, ArrowLeft, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import './WishList.css'
+import {
+    fetchWishListItems,
+    removeFromWishList,
+    clearWishList
+} from '@/services/WishlistSerices';
+import { addToCart } from '@/services/CartServices.ts'
+import './WishList.css';
+import { supabase } from "@/services/supabase.ts";
 
 const WishList = () => {
     const navigate = useNavigate();
     const [wishlistItems, setWishlistItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
 
-    // Mock data - replace with actual data from your backend
-    const mockWishlist = [
-        {
-            id: 1,
-            name: "Wireless Bluetooth Headphones",
-            price: 7999,
-            originalPrice: 9999,
-            image: "/api/placeholder/300/300",
-            rating: 4.5,
-            reviews: 128,
-            inStock: true,
-            category: "Electronics"
-        },
-        {
-            id: 2,
-            name: "Smart Fitness Watch",
-            price: 12999,
-            originalPrice: 15999,
-            image: "/api/placeholder/300/300",
-            rating: 4.2,
-            reviews: 89,
-            inStock: true,
-            category: "Electronics"
-        },
-        {
-            id: 3,
-            name: "Organic Cotton T-Shirt",
-            price: 1499,
-            originalPrice: 1999,
-            image: "/api/placeholder/300/300",
-            rating: 4.7,
-            reviews: 256,
-            inStock: false,
-            category: "Clothing"
-        }
-    ];
-
+    // Get user profile with integer ID
     useEffect(() => {
-        // Simulate API call to fetch wishlist
-        setTimeout(() => {
-            setWishlistItems(mockWishlist);
-            setLoading(false);
-        }, 1000);
+        const getUserProfile = async () => {
+            try {
+                // First get the auth user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    setError('Please log in to view your wishlist');
+                    return;
+                }
+
+                // Then get the user profile with integer ID
+                const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('auth_id', user.id)
+                    .single();
+
+                if (error) {
+                    console.error('Error fetching user profile:', error);
+                    setError('Failed to load user profile');
+                    setLoading(false);
+                    return;
+                }
+
+                setUserProfile(profile);
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                setError('Failed to load user profile');
+                setLoading(false);
+            }
+        };
+
+        getUserProfile();
     }, []);
 
-    const removeFromWishlist = (itemId) => {
-        setWishlistItems(prev => prev.filter(item => item.id !== itemId));
-        // Here you would also call your API to remove from backend
+    // Load wishlist items when userProfile is available
+    useEffect(() => {
+        if (userProfile && userProfile.id) {
+            loadWishlistItems();
+        }
+    }, [userProfile]); // Only run when userProfile changes
+
+    const loadWishlistItems = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            if (!userProfile || !userProfile.id) {
+                setError('User not authenticated');
+                setLoading(false);
+                return;
+            }
+
+            const result = await fetchWishListItems(userProfile.id);
+
+            if (result.success) {
+                // First transform basic product data
+                const itemsWithBasicData = result.data.map(item => ({
+                    wishlist_item_id: item.wishlist_item_id,
+                    id: item.product_id,
+                    name: item.products?.name || 'Product Name Not Available',
+                    price: item.products?.price || 0,
+                    originalPrice: item.products?.originalprice || item.products?.price || 0,
+                    image: item.products?.product_images?.[0] || '/api/placeholder/300/300',
+                    inStock: (item.products?.stock_number || 0) > 0,
+                    category: item.products?.category || 'Uncategorized',
+                    // Temporary placeholder values
+                    rating: 0,
+                    reviews: 0
+                }));
+
+                // Fetch reviews for all products
+                const productsWithReviews = await Promise.all(
+                    itemsWithBasicData.map(async (item) => {
+                        try {
+                            const reviewsResult = await supabase
+                                .from('reviews')
+                                .select('rating')
+                          .eq('product_id', item.id);
+
+                    if (reviewsResult.data && reviewsResult.data.length > 0) {
+                                const averageRating = reviewsResult.data.reduce((sum, review) => sum + review.rating, 0) / reviewsResult.data.length;
+                                return {
+                                    ...item,
+                                    rating: parseFloat(averageRating.toFixed(1)),
+                                    reviews: reviewsResult.data.length
+                                };
+                            }
+                            return item;
+                        } catch (error) {
+                            console.error(`Error fetching reviews for product ${item.id}:`, error);
+                            return item;
+                        }
+                    })
+                );
+
+                setWishlistItems(productsWithReviews);
+            } else {
+                setError(result.error);
+            }
+        } catch (err) {
+            setError('Failed to load wishlist items');
+            console.error('Error loading wishlist:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+    const removeFromWishlist = async (productId) => {
+        try {
+            if (!userProfile?.id) {
+                setError('User not authenticated');
+                return;
+            }
+
+            const result = await removeFromWishList(userProfile.id, productId);
+            if (result.success) {
+                setWishlistItems(prev => prev.filter(item => item.id !== productId));
+            } else {
+                setError('Failed to remove item from wishlist');
+            }
+        } catch (err) {
+            setError('Error removing item from wishlist');
+            console.error('Error removing from wishlist:', err);
+        }
     };
 
-    const moveToCart = (item) => {
+    const clearAllWishlist = async () => {
+        if (!userProfile?.id) {
+            setError('User not authenticated');
+            return;
+        }
+
+        if (window.confirm('Are you sure you want to clear your entire wishlist?')) {
+            try {
+                const result = await clearWishList(userProfile.id);
+                if (result.success) {
+                    setWishlistItems([]);
+                } else {
+                    setError('Failed to clear wishlist');
+                }
+            } catch (err) {
+                setError('Error clearing wishlist');
+                console.error('Error clearing wishlist:', err);
+            }
+        }
+    };
+
+    const moveToCart = async (item) => {
+        if (!userProfile?.id) {
+            setError('User not authenticated');
+            return;
+        }
+
         if (!item.inStock) {
             alert('This item is currently out of stock');
             return;
         }
-        // Add to cart logic here
-        console.log('Moving to cart:', item);
-        // After moving to cart, you might want to remove from wishlist
-        removeFromWishlist(item.id);
+
+        try {
+            const cartResult = await addToCart(userProfile.id, item.id, 1);
+
+            if (cartResult.success) {
+                // If successfully added to cart, remove from wishlist
+                await removeFromWishlist(item.id);
+                alert('Item moved to cart successfully!');
+            } else {
+                alert('Failed to add item to cart: ' + cartResult.error);
+            }
+        } catch (err) {
+            console.error('Error moving to cart:', err);
+            alert('Error moving item to cart');
+        }
     };
 
     const calculateDiscount = (price, originalPrice) => {
+        if (!originalPrice || originalPrice <= price) return 0;
         return Math.round(((originalPrice - price) / originalPrice) * 100);
     };
 
-    if (loading) {
+    // Show loading state only when initially loading and userProfile is not yet set
+    if (loading && !userProfile) {
         return (
             <div className="wishlist-container">
                 <div className="wishlist-loading">
                     <div className="loading-spinner"></div>
                     <p>Loading your wishlist...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="wishlist-container">
+                <div className="wishlist-error">
+                    <p>Error: {error}</p>
+                    <button
+                        className="retry-btn"
+                        onClick={loadWishlistItems}
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -117,7 +259,7 @@ const WishList = () => {
                 <div className="wishlist-content">
                     <div className="wishlist-grid">
                         {wishlistItems.map((item) => (
-                            <div key={item.id} className="wishlist-card">
+                            <div key={item.wishlist_item_id} className="wishlist-card">
                                 <div className="card-header">
                                     <span className={`stock-badge ${item.inStock ? 'in-stock' : 'out-of-stock'}`}>
                                         {item.inStock ? 'In Stock' : 'Out of Stock'}
@@ -135,6 +277,11 @@ const WishList = () => {
                                     onClick={() => navigate(`/product/${item.id}`)}
                                 >
                                     <img src={item.image} alt={item.name} />
+                                    {!item.inStock && (
+                                        <div className="out-of-stock-overlay">
+                                            Out of Stock
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="product-info">
@@ -152,7 +299,7 @@ const WishList = () => {
                                             ))}
                                         </div>
                                         <span className="rating-text">
-                                            {item.rating} ({item.reviews})
+                                            {item.rating.toFixed(1)} ({item.reviews} reviews)
                                         </span>
                                     </div>
 
@@ -178,7 +325,7 @@ const WishList = () => {
                                         disabled={!item.inStock}
                                     >
                                         <ShoppingCart size={18} />
-                                        Move to Cart
+                                        {!item.inStock ? 'Out of Stock' : 'Move to Cart'}
                                     </button>
                                     <button
                                         className="view-details-btn"
@@ -194,7 +341,7 @@ const WishList = () => {
                     <div className="wishlist-actions">
                         <button
                             className="clear-all-btn"
-                            onClick={() => setWishlistItems([])}
+                            onClick={clearAllWishlist}
                         >
                             <Trash2 size={18} />
                             Clear All Items

@@ -8,6 +8,8 @@ import { Product } from '@/types/Product';
 import { addToCart } from '@/services/CartServices';
 import { supabase } from '@/services/supabase';
 import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import { addToWishList } from '@/services/WishlistSerices';
+
 
 interface ProductCardProps {
     product: Product;
@@ -19,6 +21,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     const { toast } = useToast(); // Initialize toast
     const [addingToCart, setAddingToCart] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
+    const [addingToWishlist, setAddingToWishlist] = useState(false);
 
     const mainImage = product.images.length > 0 ? product.images[0] : "/placeholder.png";
 
@@ -131,6 +134,57 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
         }
     };
 
+    const handleAddToWishlist = async () => {
+        // Check if user is logged in
+        if (!userProfile) {
+            toast({
+                title: "Login Required",
+                description: "Please log in to add items to your wishlist",
+                variant: "destructive",
+                action: (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => navigate('/login')}
+                    >
+                        Login
+                    </Button>
+                ),
+            });
+            return;
+        }
+
+        setAddingToWishlist(true);
+        try {
+            const result = await addToWishList(userProfile.id, product.id);
+
+            if (result.success) {
+                toast({
+                    title: "Added to Wishlist!",
+                    description: `${product.name} has been added to your wishlist`,
+                    variant: "default",
+                    duration: 3000,
+                });
+            } else {
+                toast({
+                    title: "Failed to Add to Wishlist",
+                    description: "Please try again",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error('Error adding to wishlist:', error);
+            toast({
+                title: "Error",
+                description: "An error occurred while adding to wishlist",
+                variant: "destructive",
+            });
+        } finally {
+            setAddingToWishlist(false);
+        }
+    };
+
+
     return (
         <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
             <div className="relative overflow-hidden">
@@ -146,8 +200,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                         variant="secondary"
                         size="sm"
                         className="w-8 h-8 p-0 rounded-full bg-white/80 hover:bg-white"
+                        onClick={handleAddToWishlist}
+                        disabled={addingToWishlist}
                     >
-                        <Heart className="h-4 w-4" />
+                        {addingToWishlist ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                        ) : (
+                            <Heart className="h-4 w-4" />
+                        )}
                     </Button>
                     {!product.inStock && (
                         <Badge variant="destructive" className="absolute top-2 left-2">
