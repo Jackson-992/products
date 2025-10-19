@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-    Search,
-    ShoppingCart,
-    User,
-    Menu,
-    X,
-    Heart,
-    LogOut,
-    History,
-    HistoryIcon,
-    CreditCard,
-    Package, MessageCircle, Phone
-} from 'lucide-react';
+import {Search, ShoppingCart, User, Menu, X, Heart, LogOut, Package, Phone} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/services/supabase';
 import './navbar.css';
 
@@ -170,9 +151,6 @@ const Navbar = () => {
                                                 </div>
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator />
-                                            {/*<DropdownMenuItem asChild>*/}
-                                            {/*    <Link to="/profile">Profile</Link>*/}
-                                            {/*</DropdownMenuItem>*/}
                                             <DropdownMenuItem asChild>
                                                 <Link to="/cart">Shopping Cart</Link>
                                             </DropdownMenuItem>

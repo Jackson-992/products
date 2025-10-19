@@ -9,12 +9,15 @@ import {
 } from '@/services/CartServices.ts';
 import { supabase } from '@/services/supabase.ts';
 import './cart.css';
+import {addToWishList} from "@/services/WishlistSerices.ts";
+import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
 
 const Cart = () => {
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
+    const { toast } = useToast(); // Initialize toast
 
     // Get user profile with integer ID
     useEffect(() => {
@@ -144,8 +147,33 @@ const Cart = () => {
         }
     };
 
-    const moveToWishlist = (item) => {
+    const moveToWishlist = async (item) => {
         // Move to wishlist logic here
+        try {
+            const result = await addToWishList(userProfile.id, item.productId);
+
+            if (result.success) {
+                toast({
+                    title: "Added to Wishlist!",
+                    description: `Product has been added to your wishlist`,
+                    variant: "default",
+                    duration: 3000,
+                });
+            } else {
+                toast({
+                    title: "Error adding to wishlist",
+                    description: "Failed to add item to wishlist. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error('Error adding to wishlist:', error);
+            toast({
+                title: "Error adding to wishlist",
+                description: "Failed to add item to wishlist. Please try again.",
+                variant: "destructive",
+            });
+        }
         console.log('Moving to wishlist:', item);
         handleRemoveItem(item.productId);
     };

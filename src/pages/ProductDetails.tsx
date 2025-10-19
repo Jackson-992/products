@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, AlertCircle} from 'lucide-react';
+import {ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, AlertCircle, X} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { supabase } from '@/services/supabase';
 import { addToCart } from '@/services/CartServices'; // Import the addToCart function
 import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
 import {addToWishList} from "@/services/WishlistSerices.ts";
+import PurchaseForm from "@/pages/PurchaseForm.tsx";
 
 
 const ProductDetailsPage: React.FC = () => {
@@ -31,6 +32,7 @@ const ProductDetailsPage: React.FC = () => {
     const [userProfile, setUserProfile] = useState(null); // Add userProfile state
     const [addingToCart, setAddingToCart] = useState<boolean>(false); // Loading state for add to cart
     const [addingToWish, setAddingToWish] = useState<boolean>(false);
+    const [showBuyForm,setShowBuyForm] = useState<boolean>(false)
 
     useEffect(() => {
         const fetchProductDetails = async () => {
@@ -109,8 +111,51 @@ const ProductDetailsPage: React.FC = () => {
         return () => subscription.unsubscribe();
     }, []);
 
+    const handleBuyNow = () => {
+        if (!product || !id) return;
+
+        // Check if user is logged in
+        if (!user || !userProfile) {
+            toast({
+                title: "Login Required",
+                description: "Please log in to purchase items",
+                variant: "destructive",
+                action: (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => navigate('/login')}
+                    >
+                        Login
+                    </Button>
+                ),
+            });
+            return;
+        }
+
+        // Check if product is in stock
+        if (!product.inStock) {
+            toast({
+                title: "Out of Stock",
+                description: "This product is out of stock and no longer available for purchase.",
+                variant: "default",
+            });
+            return;
+        }
+
+        setShowBuyForm(true);
+    };
+
+    const handleCloseBuyForm = () => {
+        setShowBuyForm(false);
+    };
+
     // Add to Cart Handler
     const handleAddToCart = async () => {
+        console.log('Add to cart clicked');
+        console.log('User:', user);
+        console.log('User Profile:', userProfile);
+        console.log('Auth Loading:', authLoading);
         if (!product || !id) return;
 
         // Check if user is logged in
@@ -477,7 +522,13 @@ const ProductDetailsPage: React.FC = () => {
                                         </>
                                     )}
                                 </Button>
-                                <Button variant="outline" size="lg" className="buy-now-button">
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    className="buy-now-button"
+                                    onClick={handleBuyNow}
+                                    disabled={!product.inStock}
+                                >
                                     Buy Now
                                 </Button>
                             </div>
@@ -613,6 +664,29 @@ const ProductDetailsPage: React.FC = () => {
                         </div>
                     </TabsContent>
                 </Tabs>
+
+                {showBuyForm && (
+                    <div className="purchase-form-overlay">
+                        <div className="purchase-form-container">
+                            <div className="purchase-form-header">
+                                <h2>Complete Your Purchase</h2>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleCloseBuyForm}
+                                    className="close-button"
+                                >
+                                    <X className="close-icon" />
+                                </Button>
+                            </div>
+                            <PurchaseForm
+                                product={product}
+                                quantity={quantity}
+                                onClose={handleCloseBuyForm}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

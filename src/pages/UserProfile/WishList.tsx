@@ -9,6 +9,7 @@ import {
 import { addToCart } from '@/services/CartServices.ts'
 import './WishList.css';
 import { supabase } from "@/services/supabase.ts";
+import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
 
 const WishList = () => {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ const WishList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
+    const { toast } = useToast(); // Initialize toast
 
     // Get user profile with integer ID
     useEffect(() => {
@@ -183,7 +185,12 @@ const WishList = () => {
             if (cartResult.success) {
                 // If successfully added to cart, remove from wishlist
                 await removeFromWishlist(item.id);
-                alert('Item moved to cart successfully!');
+                toast({
+                    title: "Moved to Cart Successfully",
+                    description: `${item.name} has been added to your Cart`,
+                    variant: "default",
+                    duration: 3000,
+                })
             } else {
                 alert('Failed to add item to cart: ' + cartResult.error);
             }
