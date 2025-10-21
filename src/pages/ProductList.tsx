@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import { Search, Flame, Star, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ProductCard from "@/components/ProductCard";
 import Loader from "@/components/Loader";
 import "./product-list.css";
@@ -13,7 +13,6 @@ const ProductList = () => {
     const [loading, setLoading] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
 
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [sortBy, setSortBy] = useState("name");
     const [filterCategory, setFilterCategory] = useState("all");
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -61,6 +60,11 @@ const ProductList = () => {
             }
         });
 
+    // Get featured products for different sections
+    const hotDeals = products.filter(product => product.rating >= 4.5).slice(0, 8);
+    const newArrivals = products.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()).slice(0, 8);
+    const bestSellers = products.filter(product => product.rating >= 4).slice(0, 8);
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setSearchParams(searchQuery ? { search: searchQuery } : {});
@@ -77,10 +81,31 @@ const ProductList = () => {
     return (
         <div className="product-list-container">
             <div className="product-list-inner">
-                {/* Header */}
+                {/* Promotional Banner */}
+                <div className="promotional-banner">
+                    <div className="banner-content">
+                        <h2>Summer Sale! Up to 50% Off</h2>
+                        <p>Limited time offer on selected items</p>
+                        <button className="banner-cta">Shop Now</button>
+                    </div>
+                </div>
+
+                {/* Header with Search and Filters */}
                 <div className="product-list-header">
-                    {/* Search + Filters */}
                     <div className="search-filters-container">
+                        <form onSubmit={handleSearch} className="search-Form">
+                            <div className="search-input-Container">
+                                <Search className="search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Search products..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="search-input"
+                                />
+                            </div>
+                        </form>
+
                         <div className="filters-container">
                             {/* Category Filter */}
                             <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -112,6 +137,84 @@ const ProductList = () => {
                     </div>
                 </div>
 
+                {/* Featured Sections */}
+                {!searchQuery && filterCategory === "all" && (
+                    <>
+                        {/* Hot Deals Section */}
+                        {hotDeals.length > 0 && (
+                            <section className="featured-section">
+                                <div className="section-header">
+                                    <Flame className="section-icon" />
+                                    <h2 className="section-title">Hot Deals</h2>
+                                </div>
+                                <div className="horizontal-scroll-container">
+                                    <div className="horizontal-scroll">
+                                        {hotDeals.map((product) => (
+                                            <div key={`hot-${product.id}`} className="scroll-item">
+                                                <ProductCard product={product} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
+                        {/* New Arrivals Section */}
+                        {newArrivals.length > 0 && (
+                            <section className="featured-section">
+                                <div className="section-header">
+                                    <Clock className="section-icon" />
+                                    <h2 className="section-title">New Arrivals</h2>
+                                </div>
+                                <div className="horizontal-scroll-container">
+                                    <div className="horizontal-scroll">
+                                        {newArrivals.map((product) => (
+                                            <div key={`new-${product.id}`} className="scroll-item">
+                                                <ProductCard product={product} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Promotional Slot */}
+                        <div className="promo-slot">
+                            <div className="promo-card">
+                                <h3>Free Shipping</h3>
+                                <p>On orders over $50</p>
+                            </div>
+                            <div className="promo-card promo-card-highlight">
+                                <h3>Member Discount</h3>
+                                <p>Extra 10% off for members</p>
+                            </div>
+                            <div className="promo-card">
+                                <h3>Easy Returns</h3>
+                                <p>30-day return policy</p>
+                            </div>
+                        </div>
+
+                        {/* Best Sellers Section */}
+                        {bestSellers.length > 0 && (
+                            <section className="featured-section">
+                                <div className="section-header">
+                                    <Star className="section-icon" />
+                                    <h2 className="section-title">Best Sellers</h2>
+                                </div>
+                                <div className="horizontal-scroll-container">
+                                    <div className="horizontal-scroll">
+                                        {bestSellers.map((product) => (
+                                            <div key={`best-${product.id}`} className="scroll-item">
+                                                <ProductCard product={product} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+                    </>
+                )}
+
                 {/* Results Info */}
                 <div className="results-info">
                     <p className="results-info-text">
@@ -120,7 +223,7 @@ const ProductList = () => {
                     </p>
                 </div>
 
-                {/* Products Grid */}
+                {/* Main Products Grid */}
                 {filteredProducts.length === 0 ? (
                     <div className="no-products">
                         <div className="no-products-icon">
@@ -132,11 +235,7 @@ const ProductList = () => {
                         </p>
                     </div>
                 ) : (
-                    <div
-                        className={`products-grid ${
-                            viewMode === "grid" ? "grid-view" : "list-view"
-                        }`}
-                    >
+                    <div className="products-Grid grid-view">
                         {filteredProducts.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}

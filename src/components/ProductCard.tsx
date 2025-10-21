@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Star, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Product } from '@/types/Product';
 import { addToCart } from '@/services/CartServices';
 import { supabase } from '@/services/supabase';
-import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import { useToast } from '@/components/ui/use-toast';
 import { addToWishList } from '@/services/WishlistSerices';
-
+import './ProductCard.css';
 
 interface ProductCardProps {
     product: Product;
@@ -18,7 +16,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     const navigate = useNavigate();
-    const { toast } = useToast(); // Initialize toast
+    const { toast } = useToast();
     const [addingToCart, setAddingToCart] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
     const [addingToWishlist, setAddingToWishlist] = useState(false);
@@ -67,7 +65,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     }, []);
 
     const handleAddToCart = async () => {
-        // Check if user is logged in
         if (!userProfile) {
             toast({
                 title: "Login Required",
@@ -86,7 +83,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
             return;
         }
 
-        // Check if product is in stock
         if (!product.inStock) {
             toast({
                 title: "Out of Stock",
@@ -101,8 +97,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
             const result = await addToCart(userProfile.id, product.id, 1);
 
             if (result.success) {
-                console.log('Product added to cart:', result.cartItem);
-
                 toast({
                     title: "Added to Cart!",
                     description: `${product.name} has been added to your cart`,
@@ -110,12 +104,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                     duration: 3000,
                 });
 
-                // Call the callback if provided to refresh cart in parent component
                 if (onCartUpdate) {
                     onCartUpdate();
                 }
             } else {
-                console.error('Failed to add to cart:', result.error);
                 toast({
                     title: "Failed to Add to Cart",
                     description: "Please try again",
@@ -135,7 +127,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     };
 
     const handleAddToWishlist = async () => {
-        // Check if user is logged in
         if (!userProfile) {
             toast({
                 title: "Login Required",
@@ -184,108 +175,87 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
         }
     };
 
+    const discountPercent = product.originalPrice
+        ? Math.round((1 - product.price / product.originalPrice) * 100)
+        : 0;
 
     return (
-        <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
-            <div className="relative overflow-hidden">
+        <div className="product-Card">
+            <div className="product-Image-container">
                 <Link to={`/product/${product.id}`}>
                     <img
                         src={mainImage}
                         alt={product.name}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="product-image"
                     />
                 </Link>
-                <div className="absolute top-2 right-2 space-y-2">
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-8 h-8 p-0 rounded-full bg-white/80 hover:bg-white"
-                        onClick={handleAddToWishlist}
-                        disabled={addingToWishlist}
-                    >
-                        {addingToWishlist ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                        ) : (
-                            <Heart className="h-4 w-4" />
-                        )}
-                    </Button>
-                    {!product.inStock && (
-                        <Badge variant="destructive" className="absolute top-2 left-2">
-                            Out of Stock
-                        </Badge>
+
+                <button
+                    className="wishlist-Btn"
+                    onClick={handleAddToWishlist}
+                    disabled={addingToWishlist}
+                    aria-label="Add to wishlist"
+                >
+                    {addingToWishlist ? (
+                        <div className="spinner-small"></div>
+                    ) : (
+                        <Heart className="icon-sm" />
                     )}
-                </div>
-                {product.originalPrice && (
-                    <Badge variant="outline" className="absolute bottom-2 left-2 bg-red-500 text-white">
-                        {Math.round((1 - product.price / product.originalPrice) * 100)}% OFF
-                    </Badge>
+                </button>
+
+                {!product.inStock && (
+                    <span className="badge badge-out-of-stock">Out of Stock</span>
+                )}
+
+                {discountPercent > 0 && (
+                    <span className="badge badge-discount">{discountPercent}% OFF</span>
                 )}
             </div>
 
-            <CardContent className="p-4">
-                <div className="mb-2">
-                    <Badge variant="secondary" className="text-xs">
-                        {product.category}
-                    </Badge>
-                </div>
-
-                <Link to={`/product/${product.id}`}>
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
-                        {product.name}
-                    </h3>
+            <div className="product-content">
+                <Link to={`/product/${product.id}`} className="product-title-link">
+                    <p className="product-Title">{product.name}</p>
                 </Link>
 
-                <div className="flex items-center mb-2">
-                    <div className="flex items-center">
+                <div className="product-rating">
+                    <div className="stars">
                         {[...Array(5)].map((_, i) => (
                             <Star
                                 key={i}
-                                className={`star ${i < Math.round(product.rating) ? 'filled' : 'empty'}`}
-                                size={16}
+                                className={i < Math.round(product.rating) ? 'star-filled' : 'star-empty'}
+                                size={14}
                             />
                         ))}
-
-                        <span className="text-sm text-gray-600 ml-1">
-                            {product.rating.toFixed(1)} ({product.reviews} reviews)
-                        </span>
                     </div>
+                    <span className="rating-Text">({product.reviews}) reviews</span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold text-green-600">
-                            Ksh {product.price.toLocaleString()}
-                        </span>
-                        {product.originalPrice && (
-                            <span className="text-sm text-gray-500 line-through">
-                                Ksh {product.originalPrice.toLocaleString()}
-                            </span>
-                        )}
-                    </div>
+                <div className="product-price">
+                    <span className="price-current">Ksh {product.price.toLocaleString()}</span>
+                    {product.originalPrice && (
+                        <span className="price-original">Ksh {product.originalPrice.toLocaleString()}</span>
+                    )}
                 </div>
-            </CardContent>
 
-            <CardFooter className="px-4 pb-4">
-                <Button
-                    className="w-full"
+                <button
+                    className={`add-to-cart-btn ${!product.inStock ? 'disabled' : ''}`}
                     disabled={!product.inStock || addingToCart}
-                    variant={product.inStock ? "default" : "secondary"}
                     onClick={handleAddToCart}
                 >
                     {addingToCart ? (
                         <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Adding...
+                            <div className="spinner-small"></div>
+                            <span>Adding...</span>
                         </>
                     ) : (
                         <>
-                            <ShoppingCart className="h-4 w-4 mr-2" />
-                            {product.inStock ? "Add to Cart" : "Out of Stock"}
+                            <ShoppingCart className="icon-sm" />
+                            <span>{product.inStock ? "Add to Cart" : "Out of Stock"}</span>
                         </>
                     )}
-                </Button>
-            </CardFooter>
-        </Card>
+                </button>
+            </div>
+        </div>
     );
 };
 

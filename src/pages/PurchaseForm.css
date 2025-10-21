@@ -44,6 +44,136 @@
     border-radius: 6px;
     border: 1px solid #e5e5e5;
 }
+.purchase-form-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.cart-items-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.cart-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #fafafa;
+}
+
+.product-image-container {
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+}
+
+.product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.product-details {
+    flex: 1;
+}
+
+.product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 5px;
+}
+
+.product-name {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.remove-item-btn {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.remove-item-btn:hover {
+    color: #ff4444;
+}
+
+.product-category {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+.price-quantity {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.price {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quantity-buttons {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quantity-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.quantity-value {
+    padding: 0 10px;
+    font-weight: 600;
+}
+
+.item-total {
+    text-align: right;
+    font-size: 1rem;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+.shipping-note {
+    background: #e8f5e8;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin: 10px 0;
+    text-align: center;
+}
 
 .product-images {
     width: 100% !important;

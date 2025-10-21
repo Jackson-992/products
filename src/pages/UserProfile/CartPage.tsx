@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield } from 'lucide-react';
+import {ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield, X} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
     fetchCartItems,
@@ -10,7 +10,9 @@ import {
 import { supabase } from '@/services/supabase.ts';
 import './cart.css';
 import {addToWishList} from "@/services/WishlistSerices.ts";
-import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import { useToast } from '@/components/ui/use-toast';
+import PurchaseForm from "@/pages/PurchaseForm.tsx";
+import { Button } from '@/components/ui/button';
 
 const Cart = () => {
     const navigate = useNavigate();
@@ -18,6 +20,7 @@ const Cart = () => {
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
     const { toast } = useToast(); // Initialize toast
+    const [showBuyForm, setShowBuyForm] = useState(false);
 
     // Get user profile with integer ID
     useEffect(() => {
@@ -105,6 +108,23 @@ const Cart = () => {
             console.error('Failed to update quantity:', result.error);
         }
     };
+
+    const handleBuyNow = () => {
+
+        // Check if any items are out of stock
+        const outOfStockItems = cartItems.filter(item => !item.inStock);
+        if (outOfStockItems.length > 0) {
+            toast({
+                title: "Out of Stock Items",
+                description: "Some items in your cart are out of stock. Please remove them to proceed.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setShowBuyForm(true);
+    };
+
 
     // Handle remove item
     const handleRemoveItem = async (productId) => {
@@ -395,7 +415,7 @@ const Cart = () => {
                                     </div>
                                 )}
 
-                                <button className="checkout-btn">
+                                <button className="checkout-btn" onClick={handleBuyNow}>
                                     Proceed to Checkout
                                 </button>
 
@@ -424,7 +444,29 @@ const Cart = () => {
                     </div>
                 </div>
             )}
+            {showBuyForm && (
+                <div className="purchase-form-overlay">
+                    <div className="purchase-form-container">
+                        <div className="purchase-form-header">
+                            <h2>Complete Your Purchase</h2>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowBuyForm(false)}
+                                className="close-button"
+                            >
+                                <X className="close-icon" />
+                            </Button>
+                        </div>
+                        <PurchaseForm
+                            cartItems={cartItems} // Pass all cart items
+                            onClose={() => setShowBuyForm(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
+
     );
 };
 
