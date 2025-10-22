@@ -8,7 +8,7 @@ import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import ProductList from "./pages/ProductList";
 import ProductDetails from "./pages/ProductDetails";
-import SellerDashboard from "./pages/SellerDashboard";
+import SellerDashboard from "./pages/SellerDashboard/SellerDashboard.tsx";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -20,6 +20,7 @@ import ProtectedRoute from "@/components/ProtectedRoute.tsx";
 import WishList  from "@/pages/UserProfile/WishList.tsx";
 import Orders from "@/pages/UserProfile/Orders.tsx";
 import ContactUs from "@/pages/UserProfile/ContactUs.tsx"
+import Join from "@/pages/SellerDashboard/Join.tsx"
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,10 @@ const App = () => (
                         <Route path="/contact_us" element={
                             <ProtectedRoute>
                                 <ContactUs/>
+                            </ProtectedRoute>} />
+                        <Route path="/join" element={
+                            <ProtectedRoute>
+                                <Join />
                             </ProtectedRoute>} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                     </Route>

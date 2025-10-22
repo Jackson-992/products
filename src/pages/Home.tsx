@@ -96,7 +96,7 @@ const Home:React.FC<ProductCardProps> = ({ product }) => {
                                     <ArrowRight className="ml-2 h-5 w-5" />
                                 </Button>
                             </Link>
-                            <Link to="*">
+                            <Link to="join">
                                 <Button
                                     size="lg"
                                     variant="outline"

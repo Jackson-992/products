@@ -1,0 +1,232 @@
+.footer {
+    background-color: #111827;
+    color: white;
+    font-size: 0.875rem;
+}
+
+.footer-container {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.footer-company {
+    grid-column: span 1;
+}
+
+.footer-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #60a5fa;
+    margin-bottom: 0.75rem;
+}
+
+.footer-description {
+    color: #d1d5db;
+    margin-bottom: 1rem;
+    max-width: 28rem;
+    line-height: 1.4;
+    font-size: 0.8rem;
+}
+
+.footer-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    color: #d1d5db;
+    font-size: 0.8rem;
+}
+
+.icon {
+    height: 0.875rem;
+    width: 0.875rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Remove display: none and make links horizontal */
+.footer-links {
+    display: block;
+}
+
+.links-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.links-horizontal a {
+    color: #d1d5db;
+    text-decoration: none;
+    transition: color 0.2s;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.links-horizontal a:hover {
+    color: #60a5fa;
+}
+
+.footer-subtitle {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.links-list a {
+    color: #d1d5db;
+    text-decoration: none;
+    transition: color 0.2s;
+    font-size: 0.8rem;
+}
+
+.links-list a:hover {
+    color: #60a5fa;
+}
+
+.footer-bottom {
+    border-top: 1px solid #374151;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.copyright {
+    color: #d1d5db;
+    font-size: 0.8rem;
+}
+
+.made-with {
+    display: flex;
+    align-items: center;
+    color: #d1d5db;
+    font-size: 0.8rem;
+}
+
+.heart-icon {
+    height: 0.875rem;
+    width: 0.875rem;
+    color: #ef4444;
+    margin: 0 0.25rem;
+}
+
+/* Mobile screens - horizontal layout for links */
+@media (max-width: 767px) {
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .footer-links {
+        display: block;
+    }
+
+    .footer-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Make Quick Links horizontal */
+    .footer-grid > div:nth-child(2) .links-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    /* Make Legal links horizontal */
+    .footer-grid > div:nth-child(3) .links-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .footer-title {
+        font-size: 1.1rem;
+    }
+
+    .footer-description,
+    .contact-item,
+    .links-list a {
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 768px) {
+    .footer-container {
+        padding: 1.5rem 1.5rem;
+    }
+
+    .footer-grid {
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .footer-company {
+        grid-column: span 1;
+    }
+
+    .footer-bottom {
+        flex-direction: row;
+        justify-content: space-between;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+    }
+
+    /* Reset to vertical layout on tablet+ */
+    .footer-grid > div:nth-child(2) .links-list,
+    .footer-grid > div:nth-child(3) .links-list {
+        flex-direction: column;
+    }
+}
+
+/* Desktop screens */
+@media (min-width: 1024px) {
+    .footer-container {
+        padding: 1.5rem 2rem;
+    }
+
+    .footer-grid {
+        gap: 2rem;
+    }
+
+    .footer-title {
+        font-size: 1.5rem;
+    }
+
+    .footer-subtitle {
+        font-size: 1.125rem;
+    }
+
+    .footer-description,
+    .contact-item,
+    .links-list a {
+        font-size: 0.875rem;
+    }
+}
