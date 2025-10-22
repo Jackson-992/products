@@ -50,6 +50,7 @@ const Cart = () => {
 
         getUserProfile();
     }, []);
+    // console.log(userProfile);
 
     // Fetch cart items from Supabase
     const loadCartItems = async () => {
@@ -460,7 +461,7 @@ const Cart = () => {
                         </div>
                         <PurchaseForm
                             cartItems={cartItems} // Pass all cart items
-                            onClose={() => setShowBuyForm(false)}
+                            onClose={() => setShowBuyForm(false)} userId={userProfile.id}
                         />
                     </div>
                 </div>

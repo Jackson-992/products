@@ -218,7 +218,7 @@ const ProductList = () => {
                 {/* Results Info */}
                 <div className="results-info">
                     <p className="results-info-text">
-                        Showing {filteredProducts.length} of {products.length} products
+                        All Products ({filteredProducts.length} of {products.length})
                         {searchQuery && <span> for "{searchQuery}"</span>}
                     </p>
                 </div>

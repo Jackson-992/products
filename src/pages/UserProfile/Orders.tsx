@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock, CreditCard, DollarSign, MapPin, Phone, Mail } from 'lucide-react';
-import './Orders.css'
+import { ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock, DollarSign, MapPin, Phone } from 'lucide-react';
+import { supabase } from '@/services/supabase';
+import './Orders.css';
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -9,227 +10,138 @@ const Orders = () => {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [activeTab, setActiveTab] = useState('pending');
-
-    // Mock data - replace with actual data from your backend
-    const mockOrders = [
-        {
-            id: 'ORD-001',
-            date: '2024-01-15T10:30:00Z',
-            status: 'delivered',
-            total: 29497,
-            items: [
-                {
-                    id: 1,
-                    name: "Wireless Bluetooth Headphones",
-                    price: 7999,
-                    quantity: 2,
-                    image: "/api/placeholder/300/300",
-                    category: "Electronics"
-                },
-                {
-                    id: 2,
-                    name: "Smart Fitness Watch",
-                    price: 12999,
-                    quantity: 1,
-                    image: "/api/placeholder/300/300",
-                    category: "Electronics"
-                }
-            ],
-            shippingAddress: {
-                fullName: "John Doe",
-                street: "123 Main Street",
-                city: "Nairobi",
-                state: "Nairobi County",
-                zipCode: "00100",
-                country: "Kenya",
-                phone: "+254712345678"
-            },
-            payment: {
-                method: "credit_card",
-                cardLast4: "4242",
-                cardBrand: "visa",
-                transactionId: "TXN-789012",
-                amount: 29497,
-                status: "completed"
-            },
-            shipping: {
-                method: "standard",
-                cost: 300,
-                trackingNumber: "TRK-123456789",
-                estimatedDelivery: "2024-01-20"
-            }
-        },
-        {
-            id: 'ORD-002',
-            date: '2024-01-10T14:20:00Z',
-            status: 'shipped',
-            total: 1499,
-            items: [
-                {
-                    id: 3,
-                    name: "Organic Cotton T-Shirt",
-                    price: 1499,
-                    quantity: 1,
-                    image: "/api/placeholder/300/300",
-                    category: "Clothing"
-                }
-            ],
-            shippingAddress: {
-                fullName: "John Doe",
-                street: "123 Main Street",
-                city: "Nairobi",
-                state: "Nairobi County",
-                zipCode: "00100",
-                country: "Kenya",
-                phone: "+254712345678"
-            },
-            payment: {
-                method: "mpesa",
-                phone: "+254712345678",
-                transactionId: "MPE-456789",
-                amount: 1499,
-                status: "completed"
-            },
-            shipping: {
-                method: "express",
-                cost: 500,
-                trackingNumber: "TRK-987654321",
-                estimatedDelivery: "2024-01-13"
-            }
-        },
-        {
-            id: 'ORD-003',
-            date: '2024-01-18T09:15:00Z',
-            status: 'processing',
-            total: 8997,
-            items: [
-                {
-                    id: 4,
-                    name: "USB-C Charging Cable",
-                    price: 1999,
-                    quantity: 3,
-                    image: "/api/placeholder/300/300",
-                    category: "Electronics"
-                },
-                {
-                    id: 5,
-                    name: "Phone Case",
-                    price: 999,
-                    quantity: 2,
-                    image: "/api/placeholder/300/300",
-                    category: "Accessories"
-                }
-            ],
-            shippingAddress: {
-                fullName: "John Doe",
-                street: "123 Main Street",
-                city: "Nairobi",
-                state: "Nairobi County",
-                zipCode: "00100",
-                country: "Kenya",
-                phone: "+254712345678"
-            },
-            payment: {
-                method: "paypal",
-                email: "john.doe@example.com",
-                transactionId: "PPL-123456",
-                amount: 8997,
-                status: "completed"
-            },
-            shipping: {
-                method: "standard",
-                cost: 0,
-                trackingNumber: null,
-                estimatedDelivery: "2024-01-25"
-            }
-        },
-        {
-            id: 'ORD-004',
-            date: '2024-01-17T16:45:00Z',
-            status: 'processing',
-            total: 25998,
-            items: [
-                {
-                    id: 6,
-                    name: "Gaming Laptop",
-                    price: 25998,
-                    quantity: 1,
-                    image: "/api/placeholder/300/300",
-                    category: "Electronics"
-                }
-            ],
-            shippingAddress: {
-                fullName: "John Doe",
-                street: "123 Main Street",
-                city: "Nairobi",
-                state: "Nairobi County",
-                zipCode: "00100",
-                country: "Kenya",
-                phone: "+254712345678"
-            },
-            payment: {
-                method: "credit_card",
-                cardLast4: "4242",
-                cardBrand: "visa",
-                transactionId: "TXN-345678",
-                amount: 25998,
-                status: "completed"
-            },
-            shipping: {
-                method: "standard",
-                cost: 0,
-                trackingNumber: null,
-                estimatedDelivery: "2024-01-24"
-            }
-        },
-        {
-            id: 'ORD-005',
-            date: '2023-12-20T16:45:00Z',
-            status: 'cancelled',
-            total: 15999,
-            items: [
-                {
-                    id: 7,
-                    name: "Smartphone",
-                    price: 15999,
-                    quantity: 1,
-                    image: "/api/placeholder/300/300",
-                    category: "Electronics"
-                }
-            ],
-            shippingAddress: {
-                fullName: "John Doe",
-                street: "123 Main Street",
-                city: "Nairobi",
-                state: "Nairobi County",
-                zipCode: "00100",
-                country: "Kenya",
-                phone: "+254712345678"
-            },
-            payment: {
-                method: "credit_card",
-                cardLast4: "4242",
-                cardBrand: "visa",
-                transactionId: "TXN-345678",
-                amount: 15999,
-                status: "refunded"
-            },
-            shipping: {
-                method: "standard",
-                cost: 0,
-                trackingNumber: null,
-                estimatedDelivery: null
-            }
-        }
-    ];
+    const [userProfile, setUserProfile] = useState(null);
 
     useEffect(() => {
-        // Simulate API call to fetch orders
-        setTimeout(() => {
-            setOrders(mockOrders);
-            setLoading(false);
-        }, 1000);
+        const getUserProfile = async () => {
+            try {
+                // First get the auth user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Then get the user profile with integer ID
+                const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('auth_id', user.id)
+                    .single();
+
+                if (error) throw error;
+                setUserProfile(profile);
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                setLoading(false);
+            }
+        };
+
+        getUserProfile();
     }, []);
+
+    useEffect(() => {
+        if (userProfile && userProfile.id) {
+            fetchUserOrders();
+        }
+    }, [userProfile]);
+
+    const fetchUserOrders = async () => {
+        try {
+            setLoading(true);
+
+            console.log('Fetching orders for user ID:', userProfile.id);
+
+            // Fetch orders with their order items using the user_profile ID
+            const { data: ordersData, error: ordersError } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    order_items (*)
+                `)
+                .eq('user_id', userProfile.id)
+                .order('created_at', { ascending: false });
+
+            if (ordersError) {
+                console.error('Error fetching orders:', ordersError);
+                throw ordersError;
+            }
+
+            console.log('Raw orders data:', ordersData);
+
+            // Transform the data to match the component's expected format
+            const transformedOrders = ordersData.map(order => ({
+                id: `ORD-${order.id.toString().padStart(3, '0')}`,
+                databaseId: order.id,
+                date: order.created_at,
+                status: mapOrderStatus(order.status, order.payment_completion),
+                total: parseFloat(order.total_amount),
+                items: order.order_items.map(item => ({
+                    id: item.id,
+                    productId: item.product_id,
+                    name: item.product_name || 'Product',
+                    price: parseFloat(item.price),
+                    quantity: item.quantity,
+                })),
+                shippingAddress: {
+                    fullName: userProfile?.name || "Customer",
+                    street: "123 Main Street",
+                    city: "Nairobi",
+                    state: "Nairobi County",
+                    zipCode: "00100",
+                    country: "Kenya",
+                    phone: order.phone_number || userProfile?.phone || "+254712345678"
+                },
+                payment: {
+                    method: "mpesa", // Default to M-Pesa since no credit cards
+                    phone: order.phone_number, // Use the phone number from orders table
+                    transactionId: `TXN-${order.id.toString().padStart(6, '0')}`,
+                    amount: parseFloat(order.total_amount),
+                    status: order.payment_completion ? "completed" : "pending"
+                },
+                shipping: {
+                    method: "standard",
+                    cost: 0,
+                    trackingNumber: null,
+                    estimatedDelivery: calculateEstimatedDelivery(order.created_at)
+                }
+            }));
+
+            console.log('Transformed orders:', transformedOrders);
+            setOrders(transformedOrders);
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Map database status to component status
+    const mapOrderStatus = (dbStatus, paymentCompletion) => {
+        // If payment is not completed, show as processing (payment pending)
+        if (!paymentCompletion) return 'processing';
+
+        switch (dbStatus?.toLowerCase()) {
+            case 'pending':
+                return 'processing';
+            case 'confirmed':
+                return 'processing';
+            case 'shipped':
+                return 'shipped';
+            case 'delivered':
+                return 'delivered';
+            case 'cancelled':
+                return 'cancelled';
+            default:
+                return 'processing';
+        }
+    };
+
+    const calculateEstimatedDelivery = (orderDate) => {
+        const deliveryDate = new Date(orderDate);
+        deliveryDate.setDate(deliveryDate.getDate() + 7);
+        return deliveryDate.toISOString().split('T')[0];
+    };
 
     const getStatusIcon = (status) => {
         switch (status) {
@@ -263,32 +175,17 @@ const Orders = () => {
 
     const getPaymentMethodText = (method) => {
         switch (method) {
-            case 'credit_card':
-                return 'Credit Card';
             case 'mpesa':
                 return 'M-Pesa';
-            case 'paypal':
-                return 'PayPal';
             case 'cash_on_delivery':
                 return 'Cash on Delivery';
             default:
-                return method;
+                return 'M-Pesa'; // Default to M-Pesa
         }
     };
 
     const getPaymentMethodIcon = (method) => {
-        switch (method) {
-            case 'credit_card':
-                return <CreditCard className="payment-icon" />;
-            case 'mpesa':
-                return <DollarSign className="payment-icon" />;
-            case 'paypal':
-                return <DollarSign className="payment-icon" />;
-            case 'cash_on_delivery':
-                return <DollarSign className="payment-icon" />;
-            default:
-                return <CreditCard className="payment-icon" />;
-        }
+        return <DollarSign className="payment-icon" />;
     };
 
     const formatDate = (dateString) => {
@@ -325,6 +222,38 @@ const Orders = () => {
                 <div className="orders-loading">
                     <div className="loading-spinner"></div>
                     <p>Loading your orders...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show login prompt if no user profile
+    if (!userProfile) {
+        return (
+            <div className="orders-container">
+                <div className="orders-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="orders-title-section">
+                        <Package className="orders-icon" />
+                        <h1 className="orders-title">My Orders</h1>
+                    </div>
+                </div>
+                <div className="empty-orders">
+                    <Package className="empty-package" />
+                    <h2>Please Log In</h2>
+                    <p>You need to be logged in to view your orders</p>
+                    <button
+                        className="start-shopping-btn"
+                        onClick={() => navigate('/login')}
+                    >
+                        Log In
+                    </button>
                 </div>
             </div>
         );
@@ -393,8 +322,8 @@ const Orders = () => {
                         ) : (
                             filteredOrders.map((order) => (
                                 <div
-                                    key={order.id}
-                                    className={`order-card ${selectedOrder?.id === order.id ? 'selected' : ''}`}
+                                    key={order.databaseId}
+                                    className={`order-card ${selectedOrder?.databaseId === order.databaseId ? 'selected' : ''}`}
                                     onClick={() => setSelectedOrder(order)}
                                 >
                                     <div className="order-header">
@@ -411,12 +340,12 @@ const Orders = () => {
                                     </div>
 
                                     <div className="order-items-preview">
-                                        {order.items.slice(0, 2).map((item, index) => (
-                                            <div key={index} className="preview-item">
-                                                <img src={item.image} alt={item.name} className="preview-image" />
+                                        {order.items.slice(0, 2).map((item) => (
+                                            <div key={item.id} className="preview-item">
                                                 <div className="preview-details">
                                                     <span className="preview-name">{item.name}</span>
                                                     <span className="preview-quantity">Qty: {item.quantity}</span>
+                                                    <span className="preview-price">Ksh {item.price.toLocaleString()}</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -433,7 +362,7 @@ const Orders = () => {
                                         </div>
                                         <div className="order-payment">
                                             {getPaymentMethodIcon(order.payment.method)}
-                                            <span>{getPaymentMethodText(order.payment.method)}</span>
+                                            <span>{getPaymentMethodText(order.payment.method)} • {order.payment.status}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -474,6 +403,12 @@ const Orders = () => {
                                                 {getStatusText(selectedOrder.status)}
                                             </span>
                                         </div>
+                                        <div className="detail-item">
+                                            <span>Payment:</span>
+                                            <span className={`payment-status ${selectedOrder.payment.status}`}>
+                                                {selectedOrder.payment.status}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -483,10 +418,8 @@ const Orders = () => {
                                     <div className="items-list">
                                         {selectedOrder.items.map((item) => (
                                             <div key={item.id} className="order-item">
-                                                <img src={item.image} alt={item.name} className="item-image" />
                                                 <div className="item-details">
                                                     <h4 className="item-name">{item.name}</h4>
-                                                    <span className="item-category">{item.category}</span>
                                                     <div className="item-price">
                                                         Ksh {item.price.toLocaleString()} × {item.quantity}
                                                     </div>
@@ -528,22 +461,9 @@ const Orders = () => {
                                             <div className="payment-method">
                                                 {getPaymentMethodText(selectedOrder.payment.method)}
                                             </div>
-                                            {selectedOrder.payment.method === 'credit_card' && (
-                                                <div className="card-info">
-                                                    **** **** **** {selectedOrder.payment.cardLast4}
-                                                    <span className="card-brand">({selectedOrder.payment.cardBrand})</span>
-                                                </div>
-                                            )}
-                                            {selectedOrder.payment.method === 'mpesa' && (
-                                                <div className="mpesa-info">
-                                                    Phone: {selectedOrder.payment.phone}
-                                                </div>
-                                            )}
-                                            {selectedOrder.payment.method === 'paypal' && (
-                                                <div className="paypal-info">
-                                                    Email: {selectedOrder.payment.email}
-                                                </div>
-                                            )}
+                                            <div className="phone-info">
+                                                Phone: {selectedOrder.payment.phone}
+                                            </div>
                                             <div className="transaction-id">
                                                 Transaction ID: {selectedOrder.payment.transactionId}
                                             </div>

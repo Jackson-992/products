@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2 } from 'lucide-react';
+import { createOrder } from '@/services/OrderServices'; // Adjust import path as needed
 import './PurchaseForm.css';
 
 interface CartItem {
@@ -20,16 +21,14 @@ interface CartItem {
 interface PurchaseFormProps {
     cartItems: CartItem[];
     onClose: () => void;
+    userId: string; // Add userId prop
 }
 
-const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose }) => {
+const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId }) => {
     const { toast } = useToast();
     const [phoneNumber, setPhoneNumber] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [selectedItems, setSelectedItems] = useState<CartItem[]>(cartItems);
-
-    // Generate a random order number
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Calculate totals
     const calculateSubtotal = () => {
@@ -67,6 +66,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose }) => {
             onClose();
         }
     };
+    console.log(userId)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,30 +102,26 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose }) => {
         setIsSubmitting(true);
 
         try {
-            // Simulate API call to process purchase
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Create order in database
+            const orderResult = await createOrder({
+                user_id: userId,
+                phone_number: phoneNumber,
+                items: selectedItems
+            });
 
-            // Here you would typically send the order to your backend
-            const orderData = {
-                orderNumber,
-                phoneNumber,
-                items: selectedItems,
-                subtotal: calculateSubtotal(),
-                shipping: shippingCost,
-                total: totalAmount,
-                timestamp: new Date().toISOString()
-            };
-
-            console.log('Order data:', orderData); // For debugging
+            if (!orderResult.success) {
+                throw new Error(orderResult.error);
+            }
 
             toast({
                 title: "Order Placed Successfully!",
-                description: `Your order ${orderNumber} for ${calculateTotalItems()} items has been placed. We'll contact you on ${phoneNumber}.`,
+                description: `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed. We'll contact you on ${phoneNumber}.`,
                 variant: "default",
             });
 
             onClose();
         } catch (error) {
+            console.error('Order creation error:', error);
             toast({
                 title: "Error",
                 description: "Failed to place order. Please try again.",
@@ -156,17 +152,19 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose }) => {
                                         />
                                     </div>
                                     <div className="product-details">
-                                        <div className="product-header">
-                                            <h4 className="product-name">{item.name}</h4>
+                                        <div className="inner-div">
+                                            <div className="product-Header">
+                                                <h4 className="product-name">{item.name}</h4>
+                                            </div>
+                                            <p className="product-category">{item.category}</p>
                                             <button
                                                 type="button"
-                                                className="remove-item-btn"
+                                                className="remove-Item-btn"
                                                 onClick={() => handleRemoveItem(item.productId)}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
-                                        <p className="product-category">{item.category}</p>
                                         <div className="price-quantity">
                                             <span className="price">Ksh {item.price.toLocaleString()}</span>
                                             <div className="quantity-controls">
@@ -200,10 +198,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose }) => {
                         </div>
 
                         <div className="order-details">
-                            <div className="order-row">
-                                <span className="order-label">Order Number:</span>
-                                <span className="order-value">{orderNumber}</span>
-                            </div>
                             <div className="order-row">
                                 <span className="order-label">Subtotal ({calculateTotalItems()} items):</span>
                                 <span className="order-value">Ksh {calculateSubtotal().toLocaleString()}</span>

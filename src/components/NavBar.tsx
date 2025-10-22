@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {Search, ShoppingCart, User, Menu, X, Heart, LogOut, Package, Phone} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
+import { ShoppingCart, User, Menu, X, Heart, LogOut, Package, Phone, Zap, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import './navbar.css';
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
     const navigate = useNavigate();
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    const announcements = [
+        { text: "🎉 Free Shipping on Orders Over KSh 5,000!", link: "/products" },
+        { text: "⚡ Flash Sale: Up to 50% Off Selected Items", link: "/products" },
+        { text: "🎁 New Arrivals Just Dropped - Shop Now!", link: "/products" },
+    ];
 
     useEffect(() => {
         // Get initial session
@@ -34,12 +37,13 @@ const Navbar = () => {
         return () => subscription.unsubscribe();
     }, []);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        if (searchQuery.trim()) {
-            navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
-        }
-    };
+    // Rotate announcements
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentAnnouncementIndex((prev) => (prev + 1) % announcements.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSignOut = async () => {
         try {
@@ -94,97 +98,81 @@ const Navbar = () => {
                             <h1 className="navbar-logo-text">254_Connect</h1>
                         </Link>
 
-                        {/* Search Bar - Desktop */}
-                        <div className="navbar-search-desktop">
-                            <form onSubmit={handleSearch} className="search-form">
-                                <div className="search-input-container">
-                                    <div>
-                                        <Search className="search-icon" />
-                                    </div>
-                                    <Input
-                                        type="text"
-                                        placeholder="Search products..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="search-input"
-                                    />
-                                </div>
-                            </form>
+                        {/* Announcement Banner - Desktop */}
+                        <div className="announcement-banner-desktop">
+                            <Link to={announcements[currentAnnouncementIndex].link} className="announcement-link">
+                                <Zap className="announcement-icon" />
+                                <span className="announcement-text">
+                                    {announcements[currentAnnouncementIndex].text}
+                                </span>
+                            </Link>
                         </div>
 
                         {/* Desktop Navigation */}
                         <div className="navbar-desktop-nav">
-
                             {user ? (
                                 <>
-                                    <Link to="wishlist">
-                                        <Button variant="ghost" size="sm" className="icon-button">
-                                            <Heart className="h-5 w-5" />
-                                        </Button>
+                                    <Link to="/products">
+                                        <button className="icon-button">
+                                            <ChevronLeft className="icon" />
+                                        </button>
+                                    </Link>
+                                    <Link to="/wishlist">
+                                        <button className="icon-button">
+                                            <Heart className="icon" />
+                                        </button>
                                     </Link>
                                     <Link to="/cart">
-                                        <Button variant="ghost" size="sm" className="icon-button">
-                                            <ShoppingCart className="h-5 w-5" />
-                                        </Button>
+                                        <button className="icon-button">
+                                            <ShoppingCart className="icon" />
+                                        </button>
                                     </Link>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                                                <Avatar className="h-8 w-8">
-                                                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
-                                                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                                                </Avatar>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-56" align="end" forceMount>
-                                            <DropdownMenuLabel className="font-normal">
-                                                <div className="flex flex-col space-y-1">
-                                                    <p className="text-sm font-medium leading-none">
-                                                        {user.user_metadata?.first_name && user.user_metadata?.last_name
-                                                            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-                                                            : user.email
-                                                        }
-                                                    </p>
-                                                    <p className="text-xs leading-none text-muted-foreground">
-                                                        {user.email}
-                                                    </p>
-                                                </div>
-                                            </DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem asChild>
-                                                <Link to="/cart">Shopping Cart</Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem asChild>
-                                                <Link to="/wishlist">Wishlist</Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem asChild>
-                                                <Link to="/orders">Orders</Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem asChild>
-                                                <Link to="/contact_us">Contact Us</Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                                                <LogOut className="mr-2 h-4 w-4" />
+                                    <div className="dropdown">
+                                        <button className="avatar-button">
+                                            <div className="avatar">
+                                                {user.user_metadata?.avatar_url ? (
+                                                    <img src={user.user_metadata.avatar_url} alt={user.email} className="avatar-image" />
+                                                ) : (
+                                                    <span className="avatar-fallback">{getUserInitials()}</span>
+                                                )}
+                                            </div>
+                                        </button>
+                                        <div className="dropdown-content">
+                                            <div className="dropdown-header">
+                                                <p className="dropdown-user-name">
+                                                    {user.user_metadata?.first_name && user.user_metadata?.last_name
+                                                        ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+                                                        : user.email
+                                                    }
+                                                </p>
+                                                <p className="dropdown-user-email">{user.email}</p>
+                                            </div>
+                                            <div className="dropdown-separator"></div>
+                                            <Link to="/cart" className="dropdown-item">Shopping Cart</Link>
+                                            <Link to="/wishlist" className="dropdown-item">Wishlist</Link>
+                                            <Link to="/orders" className="dropdown-item">Orders</Link>
+                                            <Link to="/contact_us" className="dropdown-item">Contact Us</Link>
+                                            <div className="dropdown-separator"></div>
+                                            <button onClick={handleSignOut} className="dropdown-item logout-item">
+                                                <LogOut className="dropdown-icon" />
                                                 <span>Log out</span>
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-
+                                            </button>
+                                        </div>
+                                    </div>
                                 </>
                             ) : (
                                 <>
                                     <Link to="/signup">
-                                        <Button variant="outline" size="sm" className="login-button">
-                                            <User className="login-icon" />
+                                        <button className="auth-button">
+                                            <User className="auth-icon" />
                                             Sign Up
-                                        </Button>
+                                        </button>
                                     </Link>
                                     <Link to="/login">
-                                        <Button variant="outline" size="sm" className="login-button">
-                                            <User className="login-icon" />
+                                        <button className="auth-button">
+                                            <User className="auth-icon" />
                                             Login
-                                        </Button>
+                                        </button>
                                     </Link>
                                 </>
                             )}
@@ -192,30 +180,23 @@ const Navbar = () => {
 
                         {/* Mobile menu button */}
                         <div className="navbar-mobile-menu-button">
-                            <Button
-                                variant="ghost"
-                                size="sm"
+                            <button
+                                className="mobile-menu-toggle"
                                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                             >
-                                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                            </Button>
+                                {isMenuOpen ? <X className="menu-icon" /> : <Menu className="menu-icon" />}
+                            </button>
                         </div>
                     </div>
 
-                    {/* Mobile Search */}
-                    <div className="navbar-mobile-search">
-                        <form onSubmit={handleSearch}>
-                            <div className="search-input-container">
-                                <Input
-                                    type="text"
-                                    placeholder="      Search products..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="search-input"
-                                />
-                                <Search className="search-icon" />
-                            </div>
-                        </form>
+                    {/* Announcement Banner - Mobile */}
+                    <div className="announcement-banner-mobile">
+                        <Link to={announcements[currentAnnouncementIndex].link} className="announcement-link">
+                            <Zap className="announcement-icon" />
+                            <span className="announcement-text">
+                                {announcements[currentAnnouncementIndex].text}
+                            </span>
+                        </Link>
                     </div>
                 </div>
             </nav>
@@ -223,111 +204,104 @@ const Navbar = () => {
             {/* Mobile Sidebar Overlay */}
             {isMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300"
+                    className="mobile-overlay"
                     onClick={closeMobileMenu}
                 />
             )}
 
             {/* Mobile Sidebar Menu */}
-            <div className={`fixed top-0 left-0 w-60 bg-white shadow-xl z-50 transform transition-transform duration-300 rounded-r-lg ${
-                isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}>
-                <div className="flex flex-col min-h-0">
+            <div className={`mobile-sidebar ${isMenuOpen ? 'mobile-sidebar-open' : ''}`}>
+                <div className="mobile-sidebar-content">
                     {/* Sidebar Header */}
-                    <div className="flex items-center justify-between p-4 border-b">
-                        <h2 className="text-lg font-semibold text-blue-600">254_Connect</h2>
-                        <Button
-                            variant="ghost"
-                            size="sm"
+                    <div className="sidebar-header">
+                        <h2 className="sidebar-title">254_Connect</h2>
+                        <button
+                            className="sidebar-close-btn"
                             onClick={closeMobileMenu}
-                            className="h-8 w-8 p-0"
                         >
-                            <X className="h-5 w-5" />
-                        </Button>
+                            <X className="close-icon" />
+                        </button>
                     </div>
 
                     {/* User Section */}
                     {user && (
-                        <div className="p-4 border-b bg-gray-50">
-                            <div className="flex items-center space-x-3">
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
-                                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium truncate">
+                        <div className="sidebar-user-section">
+                            <div className="sidebar-user-info">
+                                <div className="avatar avatar-large">
+                                    {user.user_metadata?.avatar_url ? (
+                                        <img src={user.user_metadata.avatar_url} alt={user.email} className="avatar-image" />
+                                    ) : (
+                                        <span className="avatar-fallback">{getUserInitials()}</span>
+                                    )}
+                                </div>
+                                <div className="user-details">
+                                    <p className="user-name">
                                         {user.user_metadata?.first_name && user.user_metadata?.last_name
                                             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
                                             : user.email
                                         }
                                     </p>
-                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                    <p className="user-email">{user.email}</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {/* Menu Items */}
-                    <div className="p-4 pb-6">
-                        <div className="space-y-1">
+                    <div className="sidebar-menu">
+                        <div className="menu-list">
                             {user ? (
                                 <>
-                                    {/* Action Buttons - Only show when logged in */}
-                                    <Link to="/cart" onClick={closeMobileMenu}>
-                                        <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                            <ShoppingCart className="mr-3 h-4 w-4" />
-                                            Shopping Cart
-                                        </Button>
+                                    <Link to="/cart" onClick={closeMobileMenu} className="menu-item">
+                                        <ShoppingCart className="menu-item-icon" />
+                                        Shopping Cart
                                     </Link>
 
-                                    <Link to="/wishlist" onClick={closeMobileMenu}>
-                                        <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                            <Heart className="mr-3 h-4 w-4" />
-                                            Wishlist
-                                        </Button>
+                                    <Link to="/wishlist" onClick={closeMobileMenu} className="menu-item">
+                                        <Heart className="menu-item-icon" />
+                                        Wishlist
                                     </Link>
 
-                                    <div className="border-t pt-2 mt-2">
-                                        <Link to="/orders" onClick={closeMobileMenu}>
-                                            <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                                <Package className="mr-3 h-4 w-4" />
-                                                Orders
-                                            </Button>
-                                        </Link>
+                                    <div className="menu-divider"></div>
 
-                                        <Link to="/contact_us" onClick={closeMobileMenu}>
-                                            <Button variant="ghost" size="sm" className="w-full justify-start h-10">
-                                                <Phone className="mr-3 h-4 w-4" />
-                                                Contact Us
-                                            </Button>
-                                        </Link>
-                                    </div>
+                                    <Link to="/orders" onClick={closeMobileMenu} className="menu-item">
+                                        <Package className="menu-item-icon" />
+                                        Orders
+                                    </Link>
 
-                                    <div className="border-t pt-2 mt-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="w-full justify-start h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            onClick={handleLogout}
-                                        >
-                                            <LogOut className="mr-3 h-4 w-4" />
-                                            Logout
-                                        </Button>
-                                    </div>
+                                    <Link to="/products" onClick={closeMobileMenu} className="menu-item">
+                                        <ChevronLeft className="menu-item-icon" />
+                                        Back to Products
+                                    </Link>
+
+                                    <Link to="/contact_us" onClick={closeMobileMenu} className="menu-item">
+                                        <Phone className="menu-item-icon" />
+                                        Contact Us
+                                    </Link>
+
+                                    <div className="menu-divider"></div>
+
+                                    <button
+                                        className="menu-item logout-menu-item"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogOut className="menu-item-icon" />
+                                        Logout
+                                    </button>
                                 </>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="auth-menu-items">
                                     <Link to="/signup" onClick={closeMobileMenu}>
-                                        <Button variant="outline" size="sm" className="w-full h-10 mb-3">
-                                            <User className="mr-2 h-4 w-4" />
+                                        <button className="auth-menu-button signup-button">
+                                            <User className="auth-menu-icon" />
                                             Sign Up
-                                        </Button>
+                                        </button>
                                     </Link>
                                     <Link to="/login" onClick={closeMobileMenu}>
-                                        <Button variant="default" size="sm" className="w-full h-10">
-                                            <User className="mr-2 h-4 w-4" />
+                                        <button className="auth-menu-button login-button">
+                                            <User className="auth-menu-icon" />
                                             Login
-                                        </Button>
+                                        </button>
                                     </Link>
                                 </div>
                             )}

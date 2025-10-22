@@ -70,6 +70,19 @@
 /* Header */
 .product-list-header {
     margin-bottom: 2rem;
+    position: sticky;
+    top: 64px;
+    background: white;
+    z-index: 10;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+@media (max-width: 1024px) {
+    .product-list-header {
+        top: 125px;
+    }
 }
 
 .search-filters-container {
@@ -266,7 +279,8 @@
 }
 
 .results-info-text {
-    color: #4b5563;
+    color: black;
+    font-weight: 600;
 }
 
 /* Products Grid */

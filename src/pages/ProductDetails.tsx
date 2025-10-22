@@ -142,19 +142,6 @@ const ProductDetailsPage: React.FC = () => {
             });
             return;
         }
-        // Create a cart item from the current product
-        const cartItem = {
-            id: `temp-${product.id}`,
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            originalPrice: product.originalPrice || product.price,
-            image: product.images[0] || '/placeholder-image.jpg',
-            quantity: quantity,
-            inStock: product.inStock,
-            category: product.category
-        };
-
         setShowBuyForm(true);
     };
 
@@ -374,7 +361,7 @@ const ProductDetailsPage: React.FC = () => {
                 <Button
                     variant="ghost"
                     onClick={() => navigate(-1)}
-                    className="back-button"
+                    className="back-Button"
                 >
                     <ArrowLeft className="button-icon" />
                     Back to Products
@@ -432,7 +419,7 @@ const ProductDetailsPage: React.FC = () => {
                                             }`}
                                         />
                                     ))}
-                                    <span className="rating-text">
+                                    <span className="Rating-text">
                                         {product.rating} ({product.reviews} reviews)
                                     </span>
                                 </div>
@@ -704,6 +691,7 @@ const ProductDetailsPage: React.FC = () => {
                                     category: product.category
                                 }]}
                                 onClose={handleCloseBuyForm}
+                                userId={userProfile.id}
                             />
                         </div>
                     </div>
