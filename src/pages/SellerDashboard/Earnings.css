@@ -1,0 +1,311 @@
+/* Earnings.css */
+.earnings-container {
+    padding: 16px;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.earnings-header h2 {
+    color: #2d3748;
+    margin: 0 0 16px 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* Compact Summary Cards */
+.earnings-summary-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.summary-card-compact {
+    background: white;
+    padding: 16px;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.summary-icon-compact {
+    background: #f7fafc;
+    padding: 8px;
+    border-radius: 6px;
+    color: #4a5568;
+}
+
+.summary-content-compact {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: #718096;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-amount {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.summary-pending {
+    font-size: 0.7rem;
+    color: #718096;
+}
+
+/* Compact Tabs */
+.earnings-tabs-compact {
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.tabs-header-compact {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-button-compact {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.tab-button-compact:hover {
+    background: #f7fafc;
+    color: #4299e1;
+}
+
+.tab-button-compact.active {
+    color: #4299e1;
+    border-bottom: 2px solid #4299e1;
+    background: #f7fafc;
+}
+
+.tab-content-compact {
+    padding: 0;
+}
+
+/* Compact Tables */
+.table-container {
+    padding: 0;
+}
+
+.table-header-compact {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f7fafc;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.table-body-compact {
+    background: white;
+}
+
+.table-row-compact {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f7fafc;
+    font-size: 0.8rem;
+    align-items: center;
+}
+
+.table-row-compact:last-child {
+    border-bottom: none;
+}
+
+.table-col {
+    color: #4a5568;
+}
+
+.table-col.text-right {
+    text-align: right;
+}
+
+.Product-name {
+    font-weight: 500;
+    color: #2d3748;
+    font-size: 1rem;
+}
+
+.amount {
+    font-weight: 600;
+    color: #48bb78;
+}
+
+.status-badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-completed {
+    background: #f0fff4;
+    color: #38a169;
+}
+
+.status-pending {
+    background: #fefcbf;
+    color: #d69e2e;
+}
+
+/* Compact Referral Stats */
+.referral-stats-compact {
+    display: flex;
+    gap: 16px;
+    padding: 12px 16px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.stat-item-compact {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #4299e1;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Compact Referral Section */
+.referral-section-compact {
+    background: white;
+    padding: 16px;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.referral-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.referral-link-container-compact {
+    display: flex;
+    gap: 8px;
+}
+
+.referral-link-compact {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: #f7fafc;
+    font-size: 0.8rem;
+    color: #718096;
+}
+
+.copy-referral-btn-compact {
+    padding: 8px 12px;
+    background: #edf2f7;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.copy-referral-btn-compact:hover {
+    background: #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .earnings-container {
+        padding: 12px;
+    }
+
+    .earnings-summary-compact {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .table-header-compact,
+    .table-row-compact {
+        grid-template-rows: 2fr 1fr;
+        gap: 8px;
+    }
+
+    .referral-stats-compact {
+        flex-direction: row;
+        gap: 12px;
+        align-content: center;
+    }
+
+    .tabs-header-compact {
+        flex-direction: row;
+    }
+
+    .tab-button-compact {
+        justify-content: flex-start;
+    }
+
+    .table-col {
+        color: #4a5568;
+        font-size: 0.6rem;
+    }
+
+    .table-col.text-right {
+        text-align: left;
+    }
+    .status-badge.status-completed{
+        font-size: 0.6rem;
+    }
+    .status-badge.status-pending{
+        font-size: 0.6rem;
+    }
+}

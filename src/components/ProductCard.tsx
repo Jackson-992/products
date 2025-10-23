@@ -230,7 +230,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                     <span className="rating-Text">({product.reviews}) reviews</span>
                 </div>
 
-                <div className="product-price">
+                <div className="Product-price">
                     <span className="price-current">Ksh {product.price.toLocaleString()}</span>
                     {product.originalPrice && (
                         <span className="price-original">Ksh {product.originalPrice.toLocaleString()}</span>

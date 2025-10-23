@@ -144,7 +144,7 @@
     color: #6b7280;
 }
 
-.product-price {
+.Product-price {
     display: flex;
     align-items: baseline;
     gap: 8px;
@@ -254,7 +254,7 @@
     .product-Image-container {
         height: 140px;
     }
-    .product-price {
+    .Product-price {
         gap: 4px;
         margin: 2px 0;
     }

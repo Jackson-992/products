@@ -1,0 +1,401 @@
+/* Performance.css */
+.performance-container {
+    padding: 16px;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.performance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.performance-header h2 {
+    color: #2d3748;
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.time-filter {
+    display: flex;
+    gap: 4px;
+    background: white;
+    padding: 4px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.time-filter-btn {
+    padding: 6px 12px;
+    border: none;
+    background: none;
+    font-size: 0.75rem;
+    color: #718096;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.time-filter-btn.active {
+    background: #4299e1;
+    color: white;
+}
+
+/* Tabs */
+.performance-tabs {
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.tabs-header {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+    background: #f7fafc;
+    color: #4299e1;
+}
+
+.tab-btn.active {
+    color: #4299e1;
+    border-bottom: 2px solid #4299e1;
+    background: #f7fafc;
+}
+
+.tab-content {
+    padding: 16px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.metric-card {
+    background: #f7fafc;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.metric-icon {
+    background: white;
+    padding: 8px;
+    border-radius: 6px;
+    color: #4299e1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.metric-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.metric-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.metric-label {
+    font-size: 0.7rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Data Grid */
+.data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.data-card {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.card-content {
+    padding: 12px 16px;
+    background: white;
+}
+
+/* Product Rows */
+.product-row {
+    display: flex;
+    /*justify-content: space-between;*/
+    align-items: center;
+    /*padding: 8px 0;*/
+}
+
+.product-row:last-child {
+    border-bottom: none;
+}
+
+.product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.Product-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.product-stats {
+    font-size: 0.7rem;
+    color: #718096;
+}
+
+.conversion-rate {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #48bb78;
+    margin-left: 0.8rem;
+}
+
+/* Referral Rows */
+.referral-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f7fafc;
+}
+
+.referral-row:last-child {
+    border-bottom: none;
+}
+
+.referral-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.referral-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.referral-date {
+    font-size: 0.7rem;
+    color: #718096;
+}
+
+.status {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: #f0fff4;
+    color: white;
+}
+
+.status-pending {
+    background: #fefcbf;
+    color: #d69e2e;
+}
+
+/* Charts */
+.chart-container {
+    padding: 8px 0;
+}
+
+.chart-bars {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    height: 80px;
+    margin-bottom: 12px;
+    gap: 4px;
+}
+
+.chart-bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.bar-container {
+    display: flex;
+    align-items: end;
+    gap: 2px;
+    height: 60px;
+}
+
+.bar {
+    width: 8px;
+    border-radius: 2px 2px 0 0;
+    transition: opacity 0.15s ease;
+}
+
+.bar:hover {
+    opacity: 0.8;
+}
+
+.bar.clicks {
+    background: #4299e1;
+}
+
+.bar.conversions {
+    background: #48bb78;
+}
+
+.bar.sales {
+    background: #9f7aea;
+}
+
+.chart-label {
+    font-size: 0.6rem;
+    color: #718096;
+}
+
+.referral-chart {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    height: 80px;
+    margin-bottom: 12px;
+    gap: 4px;
+}
+
+.referral-bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.referral-bar {
+    width: 12px;
+    background: #ed8936;
+    border-radius: 2px 2px 0 0;
+    transition: opacity 0.15s ease;
+}
+
+.referral-bar:hover {
+    opacity: 0.8;
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    color: #718096;
+}
+
+.legend-color {
+    width: 12px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.legend-color.clicks { background: #4299e1; }
+.legend-color.conversions { background: #48bb78; }
+.legend-color.sales { background: #9f7aea; }
+.legend-color.referrals { background: #ed8936; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .performance-container {
+        padding: 12px;
+    }
+
+    .performance-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .time-filter {
+        align-self: stretch;
+        justify-content: center;
+    }
+
+    .data-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .metric-value{
+        font-size: 0.9rem;
+    }
+    .metric-label{
+        font-size: 0.6rem;
+    }
+
+    .tabs-header {
+        flex-direction: row;
+    }
+
+    .tab-btn {
+        justify-content: flex-start;
+        font-size: 0.65rem;
+    }
+}
