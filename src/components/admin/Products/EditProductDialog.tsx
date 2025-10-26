@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { Product } from '@/types/Product.ts';
-import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails } from '@/services/adminProductService';
+import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails } from '@/services/adminProductService.ts';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {
@@ -396,7 +396,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     <img
                                         src={image.url}
                                         alt={`Preview ${index}`}
-                                        className="preview-image"
+                                        className="preview-Image"
                                     />
                                     <button
                                         type="button"

@@ -1,0 +1,349 @@
+.order-table-container {
+    padding: 1rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.table-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #333;
+}
+
+.order-count {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.clear-filters-btn {
+    padding: 0.5rem 1rem;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    white-space: nowrap;
+    height: fit-content;
+}
+
+.clear-filters-btn:hover {
+    background: #5a6268;
+}
+
+/* Filters Section */
+.filters-container {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: white;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+/* Table Wrapper */
+.table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+/* Table Styles */
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    min-width: 800px;
+    table-layout: fixed; /* Ensures consistent column widths */
+}
+
+.orders-table th {
+    background-color: #f8f9fa;
+    padding: 0.75rem 0.5rem;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+}
+
+.orders-table td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+
+/* Column width adjustments */
+.orders-table th:nth-child(1), /* Order ID */
+.orders-table td:nth-child(1) {
+    width: 120px;
+    min-width: 120px;
+}
+
+.orders-table th:nth-child(2), /* User Name */
+.orders-table td:nth-child(2) {
+    width: 140px;
+    min-width: 140px;
+}
+
+.orders-table th:nth-child(3), /* User ID */
+.orders-table td:nth-child(3) {
+    width: 100px;
+    min-width: 100px;
+}
+
+.orders-table th:nth-child(4), /* Phone */
+.orders-table td:nth-child(4) {
+    width: 130px;
+    min-width: 130px;
+}
+
+.orders-table th:nth-child(5), /* Amount */
+.orders-table td:nth-child(5) {
+    width: 100px;
+    min-width: 100px;
+}
+
+.orders-table th:nth-child(6), /* Status */
+.orders-table td:nth-child(6) {
+    width: 110px;
+    min-width: 110px;
+}
+
+.orders-table th:nth-child(7), /* Date Created */
+.orders-table td:nth-child(7) {
+    width: 150px;
+    min-width: 150px;
+}
+
+/* Text alignment */
+.orders-table th.text-left,
+.orders-table td.text-left {
+    text-align: left;
+}
+
+.orders-table th.text-center,
+.orders-table td.text-center {
+    text-align: center;
+}
+
+.orders-table th.text-right,
+.orders-table td.text-right {
+    text-align: right;
+}
+
+.Order-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.order-row:hover {
+    background-color: #f8f9fa;
+}
+
+/* Cell specific styles */
+.Order-id {
+    font-weight: 600;
+    color: #007bff;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.User-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.user-id {
+    color: #666;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.phone {
+    color: #666;
+    white-space: nowrap;
+}
+
+.amount {
+    font-weight: 600;
+    color: #28a745;
+}
+
+.date-created {
+    color: #666;
+    white-space: nowrap;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: capitalize;
+    white-space: nowrap;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+.status-completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-processing {
+    background-color: #cce7ff;
+    color: #004085;
+}
+
+.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-default {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.no-results {
+    text-align: center;
+    color: #6c757d;
+    padding: 2rem !important;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .order-table-container {
+        padding: 0.5rem;
+    }
+
+    .table-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .clear-filters-btn {
+        align-self: flex-start;
+    }
+
+    .filters-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .filter-group {
+        min-width: auto;
+    }
+
+    .hide-on-mobile {
+        display: none;
+    }
+
+    .orders-table {
+        font-size: 0.7rem;
+        min-width: 700px;
+    }
+
+    .orders-table th,
+    .orders-table td {
+        padding: 0.5rem 0.375rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .hide-on-small {
+        display: none;
+    }
+
+    .orders-table {
+        min-width: 600px;
+    }
+
+    .status-badge {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.65rem;
+        min-width: 70px;
+    }
+}
+
+/* Compact scrollbar */
+.table-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

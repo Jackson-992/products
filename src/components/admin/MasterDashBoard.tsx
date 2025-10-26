@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { Product } from '@/types/Product.ts';
-import ProductTable from './ProductTable';
-import EditProductDialog from './EditProductDialog';
-import AnalyticsTab from './AnalyticsTab';
+import ProductTable from './Products/ProductTable.tsx';
+import EditProductDialog from './Products/EditProductDialog.tsx';
+import AnalyticsTab from './Analytics/AnalyticsTab.tsx';
+import UsersTable from './Users/UsersTable.tsx';
+import OrderTable from './Orders/OrderTable.tsx';
+import RefundTable from './Refunds/RefundTable.tsx';
+import AffilliatesTable from './Affilliates/AffilliatesTable.tsx';
+import Payment from './Payment/Payment.tsx'
 import {getProducts} from '@/services/ProductService.ts';
-import { deleteProduct } from '@/services/adminProductService'; // Import delete function
+import { deleteProduct } from '@/services/adminProductService';
 import './MasterDashboard.css';
 
 const MasterDashboard = () => {
@@ -88,8 +93,8 @@ const MasterDashboard = () => {
             <div className="master-dashboard">
                 <div className="container">
                     <div className="dashboard-header">
-                        <h1>Product Dashboard</h1>
-                        <p>Loading products...</p>
+                        <h1>Admin Dashboard</h1>
+                        <p>Loading...</p>
                     </div>
                 </div>
             </div>
@@ -101,7 +106,7 @@ const MasterDashboard = () => {
             <div className="master-dashboard">
                 <div className="container">
                     <div className="dashboard-header">
-                        <h1>Product Dashboard</h1>
+                        <h1>Admin Dashboard</h1>
                         <p className="error-message">{error}</p>
                         <button
                             onClick={refreshProducts}
@@ -121,23 +126,30 @@ const MasterDashboard = () => {
                 {/* Header */}
                 <div className="dashboard-header">
                     <div>
-                        <h1>Product Dashboard</h1>
+                        <h1>Admin Dashboard</h1>
                     </div>
                     <button
                         onClick={refreshProducts}
                         className="refresh-button"
                         disabled={loading}
                     >
-                        {loading ? 'Refreshing...' : 'Refresh Products'}
+                        {loading ? 'Refreshing...' : 'Refresh'}
                     </button>
                 </div>
 
                 {/* Main Content */}
                 <Tabs defaultValue="products">
-                    <TabsList className="tabs-list">
-                        <TabsTrigger value="products">Products</TabsTrigger>
-                        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                    </TabsList>
+                    <div className="tabs-scroll-container">
+                        <TabsList className="Tabs-list">
+                            <TabsTrigger value="products">Products</TabsTrigger>
+                            <TabsTrigger value="users">Users</TabsTrigger>
+                            <TabsTrigger value="orders">Orders</TabsTrigger>
+                            <TabsTrigger value="refunds">Refunds</TabsTrigger>
+                            <TabsTrigger value="sellers">Affiliates</TabsTrigger>
+                            <TabsTrigger value="payments">Payments</TabsTrigger>
+                            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                        </TabsList>
+                    </div>
 
                     <TabsContent value="products">
                         <ProductTable
@@ -151,9 +163,30 @@ const MasterDashboard = () => {
                         />
                     </TabsContent>
 
+                    <TabsContent value="users">
+                        <UsersTable />
+                    </TabsContent>
+
+                    <TabsContent value="orders">
+                        <OrderTable />
+                    </TabsContent>
+
+                    <TabsContent value="refunds">
+                        <RefundTable />
+                    </TabsContent>
+
                     <TabsContent value="analytics">
                         <AnalyticsTab products={products} />
                     </TabsContent>
+
+                    <TabsContent value="sellers">
+                        <AffilliatesTable/>
+                    </TabsContent>
+
+                    <TabsContent value="payments">
+                        <Payment/>
+                    </TabsContent>
+
                 </Tabs>
 
                 {/* Edit Product Dialog */}

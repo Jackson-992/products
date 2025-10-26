@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
-import { Product } from '@/types/Product';
-import { createProduct, uploadProductImage, updateProductImages } from '@/services/adminProductService';
+import { Product } from '@/types/Product.ts';
+import { createProduct, uploadProductImage, updateProductImages } from '@/services/adminProductService.ts';
 import './AddProductDialog.css';
 
 interface AddProductDialogProps {
@@ -281,7 +281,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                     <img
                                         src={imageFile.previewUrl}
                                         alt={`Preview ${index}`}
-                                        className="preview-image"
+                                        className="preview-Image"
                                     />
                                     <button
                                         type="button"

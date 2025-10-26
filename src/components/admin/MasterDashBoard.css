@@ -40,14 +40,30 @@
     color: #9ca3af;
 }
 
-.tabs-list {
-    display: grid;
+.tabs-scroll-container {
     width: 100%;
-    max-width: 20rem;
-    grid-template-columns: 1fr 1fr;
-    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
 }
 
+.Tabs-list {
+    display: flex;
+    white-space: nowrap;
+    /* Remove width constraints that cause the issue */
+    width: auto;
+    min-width: min-content;
+    padding: 4px 0;
+}
+
+.Tabs-trigger {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    white-space: nowrap;
+    /* Ensure tabs don't grow unnecessarily */
+    flex-grow: 0;
+    flex-basis: auto;
+}
 @media (min-width: 768px) {
     .dashboard-header {
         flex-direction: row;

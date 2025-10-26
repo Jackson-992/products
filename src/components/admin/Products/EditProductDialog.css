@@ -36,7 +36,7 @@
     overflow: hidden;
 }
 
-.preview-image {
+.preview-Image {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -174,6 +174,6 @@
 
     .dialog-content {
         width: 100%;
-        margin: 1rem;
+        margin: 0.6rem;
     }
 }

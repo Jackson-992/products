@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Badge } from '@/components/ui/badge.tsx';
 import { Edit, Trash2 } from 'lucide-react';
 import { Product } from '@/types/Product.ts';
-import AddProductDialog from './AddProductDialog';
+import AddProductDialog from './AddProductDialog.tsx';
 import './ProductTable.css';
 
 interface ProductTableProps {
@@ -79,7 +79,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
                                         <img
                                             src={product.images[0]}
                                             alt={product.name}
-                                            className="product-image"
+                                            className="product-iMage"
                                             onError={(e) => {
                                                 // Fallback if image fails to load
                                                 e.currentTarget.style.display = 'none';
@@ -89,7 +89,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
                                         <div className="no-image-placeholder">No Image</div>
                                     )}
                                 </TableCell>
-                                <TableCell className="product-info">
+                                <TableCell className="product-Info">
                                     <div className="product-name">{product.name}</div>
                                     {product.description && (
                                         <div className="product-description">{product.description}</div>
