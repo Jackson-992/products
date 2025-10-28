@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield, X} from 'lucide-react';
+import { ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
     fetchCartItems,
     removeFromCart,
     clearCart,
     updateCartQuantity
-} from '@/services/CartServices.ts';
-import { supabase } from '@/services/supabase.ts';
+} from '@/services/CartServices';
+import { supabase } from '@/services/supabase';
 import './cart.css';
-import {addToWishList} from "@/services/WishlistSerices.ts";
+import { addToWishList } from "@/services/WishlistSerices";
 import { useToast } from '@/components/ui/use-toast';
-import PurchaseForm from "@/pages/PurchaseForm.tsx";
+import PurchaseForm from "@/pages/PurchaseForm";
 import { Button } from '@/components/ui/button';
 
 const Cart = () => {
@@ -19,7 +19,7 @@ const Cart = () => {
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
-    const { toast } = useToast(); // Initialize toast
+    const { toast } = useToast();
     const [showBuyForm, setShowBuyForm] = useState(false);
 
     // Get user profile with integer ID
@@ -37,10 +37,14 @@ const Cart = () => {
                 const { data: profile, error } = await supabase
                     .from('user_profiles')
                     .select('*')
-                    .eq('auth_id', user.id) // or whatever links to auth.users
+                    .eq('auth_id', user.id)
                     .single();
 
-                if (error) throw error;
+                if (error) {
+                    console.error('Error fetching user profile:', error);
+                    setLoading(false);
+                    return;
+                }
                 setUserProfile(profile);
             } catch (error) {
                 console.error('Error fetching user profile:', error);
@@ -50,7 +54,6 @@ const Cart = () => {
 
         getUserProfile();
     }, []);
-    // console.log(userProfile);
 
     // Fetch cart items from Supabase
     const loadCartItems = async () => {
@@ -58,29 +61,35 @@ const Cart = () => {
 
         try {
             setLoading(true);
-            const result = await fetchCartItems(userProfile.id); // Use integer ID from user_profiles
+            const result = await fetchCartItems(userProfile.id);
 
-            if (result.success) {
+            if (result.success && result.data) {
                 // Transform the data to match your component structure
                 const transformedData = result.data.map(item => ({
-                    id: item.cart_item_id || item.id,
+                    id: item.cart_item_id,
                     productId: item.product_id,
-                    name: item.products.name,
-                    price: item.products.price,
-                    originalPrice: item.products.originalprice || item.products.price,
-                    image: item.products.product_images ? item.products.product_images[0] : '/api/placeholder/300/300',
+                    variationId: item.variation_id,
+                    name: item.products?.name || 'Product',
+                    price: item.price || item.products?.price || 0,
+                    originalPrice: item.products?.originalprice || item.products?.price || 0,
+                    image: item.products?.product_images?.[0] || '/api/placeholder/300/300',
                     quantity: item.quantity,
-                    inStock: item.products.stock_number > 0,
-                    maxStock: item.products.stock_number || 10,
-                    category: item.products.category
+                    inStock: (item.products?.stock_number || 0) > 0,
+                    maxStock: item.products?.stock_number || 10,
+                    category: item.products?.category || 'General',
+                    color: item.color,
+                    size: item.size,
+                    productSku: item.product_sku
                 }));
 
                 setCartItems(transformedData);
             } else {
                 console.error('Error loading cart:', result.error);
+                setCartItems([]);
             }
         } catch (error) {
             console.error('Error loading cart items:', error);
+            setCartItems([]);
         } finally {
             setLoading(false);
         }
@@ -92,26 +101,97 @@ const Cart = () => {
         }
     }, [userProfile]);
 
-    // Handle quantity updates
-    const handleUpdateQuantity = async (productId, newQuantity) => {
+    // Handle quantity updates using cart_item_id
+    const handleUpdateQuantity = async (cartItemId, newQuantity) => {
         if (!userProfile) return;
         if (newQuantity < 1) return;
 
-        const result = await updateCartQuantity(userProfile.id, productId, newQuantity);
+        const result = await updateCartQuantity(cartItemId, newQuantity);
         if (result.success) {
             // Update local state
             setCartItems(prev => prev.map(item =>
-                item.productId === productId
+                item.id === cartItemId
                     ? { ...item, quantity: newQuantity }
                     : item
             ));
         } else {
             console.error('Failed to update quantity:', result.error);
+            toast({
+                title: "Error",
+                description: "Failed to update quantity",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Handle remove item using cart_item_id
+    const handleRemoveItem = async (cartItemId) => {
+        if (!userProfile) return;
+
+        const result = await removeFromCart(cartItemId);
+        if (result.success) {
+            // Update local state
+            setCartItems(prev => prev.filter(item => item.id !== cartItemId));
+            toast({
+                title: "Item Removed",
+                description: "Item has been removed from your cart",
+                variant: "default",
+            });
+        } else {
+            console.error('Failed to remove item:', result.error);
+            toast({
+                title: "Error",
+                description: "Failed to remove item from cart",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Handle clear cart
+    const handleClearCart = async () => {
+        if (!userProfile) return;
+
+        const result = await clearCart(userProfile.id);
+        if (result.success) {
+            setCartItems([]);
+            toast({
+                title: "Cart Cleared",
+                description: "All items have been removed from your cart",
+                variant: "default",
+            });
+        } else {
+            console.error('Failed to clear cart:', result.error);
+            toast({
+                title: "Error",
+                description: "Failed to clear cart",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Handle decrement quantity
+    const handleDecrement = async (cartItemId, currentQuantity) => {
+        if (currentQuantity === 1) {
+            await handleRemoveItem(cartItemId);
+        } else {
+            await handleUpdateQuantity(cartItemId, currentQuantity - 1);
+        }
+    };
+
+    // Handle increment quantity
+    const handleIncrement = async (cartItemId, currentQuantity, maxStock) => {
+        if (currentQuantity < maxStock) {
+            await handleUpdateQuantity(cartItemId, currentQuantity + 1);
+        } else {
+            toast({
+                title: "Maximum Quantity",
+                description: "You've reached the maximum available quantity for this item",
+                variant: "default",
+            });
         }
     };
 
     const handleBuyNow = () => {
-
         // Check if any items are out of stock
         const outOfStockItems = cartItems.filter(item => !item.inStock);
         if (outOfStockItems.length > 0) {
@@ -123,67 +203,38 @@ const Cart = () => {
             return;
         }
 
+        // Check if cart is empty
+        if (cartItems.length === 0) {
+            toast({
+                title: "Cart is Empty",
+                description: "Please add items to your cart before proceeding to checkout",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setShowBuyForm(true);
     };
 
-
-    // Handle remove item
-    const handleRemoveItem = async (productId) => {
-        if (!userProfile) return;
-
-        const result = await removeFromCart(userProfile.id, productId);
-        if (result.success) {
-            // Update local state
-            setCartItems(prev => prev.filter(item => item.productId !== productId));
-        } else {
-            console.error('Failed to remove item:', result.error);
-        }
-    };
-
-    // Handle clear cart
-    const handleClearCart = async () => {
-        if (!userProfile) return;
-
-        const result = await clearCart(userProfile.id);
-        if (result.success) {
-            setCartItems([]);
-        } else {
-            console.error('Failed to clear cart:', result.error);
-        }
-    };
-
-    // Handle decrement quantity
-    const handleDecrement = async (productId, currentQuantity) => {
-        if (currentQuantity === 1) {
-            await handleRemoveItem(productId);
-        } else {
-            await handleUpdateQuantity(productId, currentQuantity - 1);
-        }
-    };
-
-    // Handle increment quantity
-    const handleIncrement = async (productId, currentQuantity, maxStock) => {
-        if (currentQuantity < maxStock) {
-            await handleUpdateQuantity(productId, currentQuantity + 1);
-        }
-    };
-
     const moveToWishlist = async (item) => {
-        // Move to wishlist logic here
+        if (!userProfile) return;
+
         try {
             const result = await addToWishList(userProfile.id, item.productId);
 
             if (result.success) {
                 toast({
                     title: "Added to Wishlist!",
-                    description: `Product has been added to your wishlist`,
+                    description: `${item.name} has been added to your wishlist`,
                     variant: "default",
                     duration: 3000,
                 });
+                // Remove from cart after successful wishlist addition
+                await handleRemoveItem(item.id);
             } else {
                 toast({
                     title: "Error adding to wishlist",
-                    description: "Failed to add item to wishlist. Please try again.",
+                    description: result.error || "Failed to add item to wishlist. Please try again.",
                     variant: "destructive",
                 });
             }
@@ -195,8 +246,6 @@ const Cart = () => {
                 variant: "destructive",
             });
         }
-        console.log('Moving to wishlist:', item);
-        handleRemoveItem(item.productId);
     };
 
     const calculateItemTotal = (price, quantity) => {
@@ -217,10 +266,19 @@ const Cart = () => {
     };
 
     const calculateTotal = () => {
-        return calculateSubtotal();
+        return calculateSubtotal() - calculateDiscount();
     };
 
     const shippingCost = calculateSubtotal() > 5000 ? 0 : 300;
+
+    // Get variation display text
+    const getVariationDisplay = (item) => {
+        const variations = [];
+        if (item.color) variations.push(item.color);
+        if (item.size) variations.push(item.size);
+
+        return variations.length > 0 ? variations.join(' • ') : null;
+    };
 
     if (loading) {
         return (
@@ -237,12 +295,14 @@ const Cart = () => {
         return (
             <div className="cart-container">
                 <div className="empty-cart">
+                    <ShoppingCart className="empty-cart-icon" />
                     <h2>Please log in to view your cart</h2>
+                    <p>Sign in to see your saved items and continue shopping</p>
                     <button
                         className="continue-shopping-btn"
                         onClick={() => navigate('/login')}
                     >
-                        Login
+                        Login to Continue
                     </button>
                 </div>
             </div>
@@ -288,6 +348,7 @@ const Cart = () => {
                                 <button
                                     className="clear-cart-btn"
                                     onClick={handleClearCart}
+                                    disabled={cartItems.length === 0}
                                 >
                                     <Trash2 size={16} />
                                     Clear Cart
@@ -295,83 +356,99 @@ const Cart = () => {
                             </div>
 
                             <div className="cart-items-list">
-                                {cartItems.map((item) => (
-                                    <div key={item.id} className="cart-item">
-                                        <div className="item-image">
-                                            <img
-                                                src={item.image}
-                                                alt={item.name}
-                                                onClick={() => navigate(`/product/${item.productId}`)}
-                                            />
-                                        </div>
-
-                                        <div className="item-details">
-                                            <div className="item-header">
-                                                <h3 className="item-name">{item.name}</h3>
-                                                <button
-                                                    className="remove-item-btn"
-                                                    onClick={() => handleRemoveItem(item.productId)}
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                {cartItems.map((item) => {
+                                    const variationDisplay = getVariationDisplay(item);
+                                    return (
+                                        <div key={item.id} className="cart-item">
+                                            <div className="item-image">
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    onClick={() => navigate(`/product/${item.productId}`)}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
                                             </div>
 
-                                            <span className="item-category">{item.category}</span>
-
-                                            <div className="item-price">
-                                                <span className="current-price">Ksh {item.price.toLocaleString()}</span>
-                                                {item.originalPrice > item.price && (
-                                                    <span className="original-price">
-                                                        Ksh {item.originalPrice.toLocaleString()}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="stock-status">
-                                                {item.inStock ? (
-                                                    <span className="in-stock">✓ In Stock</span>
-                                                ) : (
-                                                    <span className="out-of-stock">✗ Out of Stock</span>
-                                                )}
-                                            </div>
-
-                                            <div className="item-actions">
-                                                <div className="quantity-controls">
-                                                    <label>Quantity:</label>
-                                                    <div className="quantity-buttons">
-                                                        <button
-                                                            className="quantity-btn"
-                                                            onClick={() => handleDecrement(item.productId, item.quantity)}
-                                                            disabled={item.quantity <= 1}
-                                                        >
-                                                            <Minus size={16} />
-                                                        </button>
-                                                        <span className="quantity-value">{item.quantity}</span>
-                                                        <button
-                                                            className="quantity-btn"
-                                                            onClick={() => handleIncrement(item.productId, item.quantity, item.maxStock)}
-                                                            disabled={item.quantity >= item.maxStock}
-                                                        >
-                                                            <Plus size={16} />
-                                                        </button>
-                                                    </div>
+                                            <div className="item-details">
+                                                <div className="item-header">
+                                                    <h3
+                                                        className="item-name"
+                                                        onClick={() => navigate(`/product/${item.productId}`)}
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        {item.name}
+                                                    </h3>
+                                                    <button
+                                                        className="remove-item-btn"
+                                                        onClick={() => handleRemoveItem(item.id)}
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
                                                 </div>
 
-                                                <button
-                                                    className="wishlist-btn"
-                                                    onClick={() => moveToWishlist(item)}
-                                                >
-                                                    <Heart size={16} />
-                                                    Save for Later
-                                                </button>
-                                            </div>
+                                                <span className="item-category">{item.category}</span>
 
-                                            <div className="item-total">
-                                                Total: <strong>Ksh {calculateItemTotal(item.price, item.quantity).toLocaleString()}</strong>
+                                                {variationDisplay && (
+                                                    <div className="item-variation">
+                                                        {variationDisplay}
+                                                    </div>
+                                                )}
+
+                                                <div className="item-price">
+                                                    <span className="current-price">Ksh {item.price.toLocaleString()}</span>
+                                                    {item.originalPrice > item.price && (
+                                                        <span className="original-price">
+                                                            Ksh {item.originalPrice.toLocaleString()}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="stock-status">
+                                                    {item.inStock ? (
+                                                        <span className="in-stock">✓ In Stock</span>
+                                                    ) : (
+                                                        <span className="out-of-stock">✗ Out of Stock</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="item-actions">
+                                                    <div className="quantity-controls">
+                                                        <label>Quantity:</label>
+                                                        <div className="quantity-buttons">
+                                                            <button
+                                                                className="quantity-btn"
+                                                                onClick={() => handleDecrement(item.id, item.quantity)}
+                                                                disabled={item.quantity <= 1}
+                                                            >
+                                                                <Minus size={16} />
+                                                            </button>
+                                                            <span className="quantity-value">{item.quantity}</span>
+                                                            <button
+                                                                className="quantity-btn"
+                                                                onClick={() => handleIncrement(item.id, item.quantity, item.maxStock)}
+                                                                disabled={item.quantity >= item.maxStock}
+                                                            >
+                                                                <Plus size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        className="wishlist-btn"
+                                                        onClick={() => moveToWishlist(item)}
+                                                    >
+                                                        <Heart size={16} />
+                                                        Save for Later
+                                                    </button>
+                                                </div>
+
+                                                <div className="item-total">
+                                                    Total: <strong>Ksh {calculateItemTotal(item.price, item.quantity).toLocaleString()}</strong>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -416,7 +493,11 @@ const Cart = () => {
                                     </div>
                                 )}
 
-                                <button className="checkout-btn" onClick={handleBuyNow}>
+                                <button
+                                    className="checkout-btn"
+                                    onClick={handleBuyNow}
+                                    disabled={cartItems.length === 0}
+                                >
                                     Proceed to Checkout
                                 </button>
 
@@ -434,7 +515,7 @@ const Cart = () => {
                         </div>
                     </div>
 
-                    {/* Recommended Products or Continue Shopping */}
+                    {/* Continue Shopping */}
                     <div className="cart-footer">
                         <button
                             className="continue-shopping-btn"
@@ -445,6 +526,8 @@ const Cart = () => {
                     </div>
                 </div>
             )}
+
+            {/* Purchase Form Modal */}
             {showBuyForm && (
                 <div className="purchase-form-overlay">
                     <div className="purchase-form-container">
@@ -460,14 +543,17 @@ const Cart = () => {
                             </Button>
                         </div>
                         <PurchaseForm
-                            cartItems={cartItems} // Pass all cart items
-                            onClose={() => setShowBuyForm(false)} userId={userProfile.id}
+                            cartItems={cartItems}
+                            onClose={() => setShowBuyForm(false)}
+                            userId={userProfile.id}
+                            subtotal={calculateSubtotal()}
+                            shippingCost={shippingCost}
+                            total={calculateTotal() + shippingCost}
                         />
                     </div>
                 </div>
             )}
         </div>
-
     );
 };
 

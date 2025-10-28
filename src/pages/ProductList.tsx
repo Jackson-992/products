@@ -98,7 +98,7 @@ const ProductList = () => {
                                 <Search className="search-icon" />
                                 <input
                                     type="text"
-                                    placeholder="Search products..."
+                                    placeholder="        Search products..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="search-input"
@@ -106,7 +106,7 @@ const ProductList = () => {
                             </div>
                         </form>
 
-                        <div className="filters-container">
+                        <div className="Filters-Container">
                             {/* Category Filter */}
                             <Select value={filterCategory} onValueChange={setFilterCategory}>
                                 <SelectTrigger className="select-trigger">

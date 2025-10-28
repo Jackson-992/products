@@ -16,7 +16,6 @@ import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
 import {addToWishList} from "@/services/WishlistSerices.ts";
 import PurchaseForm from "@/pages/PurchaseForm.tsx";
 
-
 const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { toast } = useToast(); // Initialize toast

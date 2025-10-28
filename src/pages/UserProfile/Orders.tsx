@@ -52,12 +52,26 @@ const Orders = () => {
 
             console.log('Fetching orders for user ID:', userProfile.id);
 
-            // Fetch orders with their order items using the user_profile ID
+            // Fetch orders with their order items and variation details
             const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
                 .select(`
                     *,
-                    order_items (*)
+                    order_items (
+                        *,
+                        products (
+                            id,
+                            name,
+                            product_images,
+                            category
+                        ),
+                        product_variations (
+                            id,
+                            color,
+                            size,
+                            sku
+                        )
+                    )
                 `)
                 .eq('user_id', userProfile.id)
                 .order('created_at', { ascending: false });
@@ -79,9 +93,15 @@ const Orders = () => {
                 items: order.order_items.map(item => ({
                     id: item.id,
                     productId: item.product_id,
+                    variationId: item.variation_id,
                     name: item.product_name || 'Product',
                     price: parseFloat(item.price),
                     quantity: item.quantity,
+                    color: item.color,
+                    size: item.size,
+                    sku: item.product_sku,
+                    product: item.products,
+                    variation: item.product_variations
                 })),
                 shippingAddress: {
                     fullName: userProfile?.name || "Customer",
@@ -196,6 +216,25 @@ const Orders = () => {
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    // Helper function to get product image
+    const getProductImage = (item) => {
+        if (item.product?.product_images && item.product.product_images.length > 0) {
+            return item.product.product_images[0];
+        }
+        return '/placeholder-product.jpg';
+    };
+
+    // Helper function to get variation display text
+    const getVariationDisplay = (item) => {
+        if (item.color && item.size) {
+            return `${item.color} - ${item.size}`;
+        }
+        if (item.variation?.color && item.variation?.size) {
+            return `${item.variation.color} - ${item.variation.size}`;
+        }
+        return 'Standard';
     };
 
     // Filter orders based on active tab
@@ -328,7 +367,7 @@ const Orders = () => {
                                 >
                                     <div className="order-header">
                                         <div className="order-info">
-                                            <h3 className="order-id">{order.id}</h3>
+                                            <h3 className="order-Id">{order.id}</h3>
                                             <span className="order-date">{formatDate(order.date)}</span>
                                         </div>
                                         <div className="order-status">
@@ -344,6 +383,9 @@ const Orders = () => {
                                             <div key={item.id} className="preview-item">
                                                 <div className="preview-details">
                                                     <span className="preview-name">{item.name}</span>
+                                                    <span className="preview-variation">
+                                                        {getVariationDisplay(item)}
+                                                    </span>
                                                     <span className="preview-quantity">Qty: {item.quantity}</span>
                                                     <span className="preview-price">Ksh {item.price.toLocaleString()}</span>
                                                 </div>
@@ -358,7 +400,7 @@ const Orders = () => {
 
                                     <div className="order-footer">
                                         <div className="order-total">
-                                            Total: <strong>Ksh {order.total.toLocaleString()}</strong>
+                                            Total: <strong>Ksh  {order.total.toLocaleString()}</strong>
                                         </div>
                                         <div className="order-payment">
                                             {getPaymentMethodIcon(order.payment.method)}
@@ -420,6 +462,16 @@ const Orders = () => {
                                             <div key={item.id} className="order-item">
                                                 <div className="item-details">
                                                     <h4 className="item-name">{item.name}</h4>
+                                                    {getVariationDisplay(item) !== 'Standard' && (
+                                                        <div className="item-variation">
+                                                            Variation: <strong>{getVariationDisplay(item)}</strong>
+                                                        </div>
+                                                    )}
+                                                    {item.sku && (
+                                                        <div className="item-sku">
+                                                            SKU: {item.sku}
+                                                        </div>
+                                                    )}
                                                     <div className="item-price">
                                                         Ksh {item.price.toLocaleString()} × {item.quantity}
                                                     </div>

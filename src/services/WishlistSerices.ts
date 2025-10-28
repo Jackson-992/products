@@ -63,6 +63,7 @@ export const addToWishList = async (userId, productId) => {
         return { success: false, error: error.message };
     }
 };
+
 // Remove single item from wishlist
 export const removeFromWishList = async (userId, productId) => {
     try {
@@ -98,7 +99,7 @@ export const clearWishList = async (userId) => {
     }
 };
 
-// Fetch wishlist items with product details
+// Fetch wishlist items with product details and variations
 export const fetchWishListItems = async (userId) => {
     try {
         const { data, error } = await supabase
@@ -112,14 +113,47 @@ export const fetchWishListItems = async (userId) => {
                     originalprice,
                     product_images,
                     category,
-                    stock_number
+                    is_active,
+                    product_variations (
+                        id,
+                        color,
+                        size,
+                        quantity,
+                        price_adjustment
+                    )
                 )
             `)
             .eq('user_id', userId);
 
         if (error) throw error;
 
-        return { success: true, data };
+        // Process the data to calculate stock and inStock status
+        const processedData = (data || []).map(item => {
+            const product = item.products;
+            const variations = product?.product_variations || [];
+
+            // Calculate total stock from variations
+            const totalStock = variations.reduce((sum, variation) =>
+                sum + (variation.quantity || 0), 0);
+
+            // Determine if product is in stock (any variation has stock and product is active)
+            const inStock = totalStock > 0 && product?.is_active;
+
+            return {
+                ...item,
+                products: {
+                    ...product,
+                    // Add calculated fields for compatibility
+                    stock_number: totalStock, // For backward compatibility
+                    stockCount: totalStock,   // For new components
+                    inStock: inStock,
+                    // Include variations for detailed display
+                    variations: variations
+                }
+            };
+        });
+
+        return { success: true, data: processedData };
     } catch (error) {
         console.error('Error fetching wishlist items:', error);
         return { success: false, error: error.message };

@@ -1,3 +1,5 @@
+import {ProductVariation} from "@/services/ProductService.ts";
+
 export interface Product {
     id: number;
     name: string;
@@ -12,6 +14,7 @@ export interface Product {
     stockCount: number;
     features:string[];
     specifications: string[];
+    variations?: ProductVariation[]; // Optional for basic product lists
 }
 
 export interface Review {

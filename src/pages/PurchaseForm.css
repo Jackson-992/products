@@ -393,6 +393,66 @@
     cursor: not-allowed;
 }
 
+/* Variation Selector Styles */
+.variation-selector {
+    margin: 8px 0;
+}
+
+.variation-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #374151;
+}
+
+.variation-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: white;
+}
+
+.variation-dropdown:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+}
+
+.variation-dropdown option:disabled {
+    color: #9ca3af;
+    background-color: #f3f4f6;
+}
+
+.selected-variation {
+    font-size: 14px;
+    color: #059669;
+    margin: 4px 0;
+}
+
+.stock-info {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: 8px;
+}
+
+/* Loading state */
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Spinner */
 .spinner {
     width: 16px;

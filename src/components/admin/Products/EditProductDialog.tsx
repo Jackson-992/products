@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { Product } from '@/types/Product.ts';
-import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails } from '@/services/adminProductService.ts';
+import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails, getProductVariations, ProductVariation } from '@/services/adminProductService.ts';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {
@@ -34,13 +34,15 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
         name: '',
         price: 0,
         originalPrice: 0,
-        stockCount: 0,
         category: '',
         description: '',
         features: [''],
         specifications: [''],
         inStock: true
     });
+    const [variations, setVariations] = useState<ProductVariation[]>([
+        { color: '', size: '', quantity: 0, price_adjustment: 0 }
+    ]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImages, setUploadingImages] = useState(false);
     const [loadingDetails, setLoadingDetails] = useState(false);
@@ -58,7 +60,6 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                         name: editingProduct.name || '',
                         price: editingProduct.price || 0,
                         originalPrice: editingProduct.originalPrice || 0,
-                        stockCount: editingProduct.stockCount || 0,
                         category: editingProduct.category || '',
                         description: '', // Will be loaded from database
                         features: [''], // Will be loaded from database
@@ -74,8 +75,11 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                         }))
                     );
 
-                    // Fetch complete product details from database
+                    // Fetch product details from database
                     const productDetails = await getProductDetails(editingProduct.id);
+
+                    // Fetch product variations
+                    const productVariations = await getProductVariations(editingProduct.id);
 
                     // Update form data with the fetched details
                     setFormData(prevData => ({
@@ -84,6 +88,11 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                         features: productDetails.features || [''],
                         specifications: productDetails.specifications || ['']
                     }));
+
+                    // Set variations (if none exist, keep the default one)
+                    if (productVariations.length > 0) {
+                        setVariations(productVariations);
+                    }
 
                 } catch (error) {
                     console.error('Error loading product details:', error);
@@ -128,6 +137,35 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
         }
 
         setCurrentImages(prev => prev.filter(img => img.url !== image.url));
+    };
+
+    // Variation management functions
+    const addVariation = () => {
+        setVariations(prev => [
+            ...prev,
+            { color: '', size: '', quantity: 0, price_adjustment: 0 }
+        ]);
+    };
+
+    const removeVariation = (index: number) => {
+        if (variations.length > 1) {
+            setVariations(prev => prev.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateVariation = (index: number, field: keyof ProductVariation, value: string | number) => {
+        setVariations(prev => {
+            const newVariations = [...prev];
+            newVariations[index] = {
+                ...newVariations[index],
+                [field]: value
+            };
+            return newVariations;
+        });
+    };
+
+    const calculateTotalStock = () => {
+        return variations.reduce((total, variation) => total + (variation.quantity || 0), 0);
     };
 
     const addFeatureField = () => {
@@ -196,6 +234,20 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
             setIsSubmitting(true);
             setUploadingImages(true);
 
+            // Validate variations
+            const validVariations = variations.filter(v =>
+                v.color.trim() !== '' &&
+                v.size.trim() !== '' &&
+                v.quantity >= 0
+            );
+
+            if (validVariations.length === 0) {
+                alert('Please add at least one valid variation with color, size, and quantity.');
+                setIsSubmitting(false);
+                setUploadingImages(false);
+                return;
+            }
+
             // First, upload new images
             const uploadedUrls = [];
             const newImages = currentImages.filter(img => img.isNew);
@@ -241,21 +293,21 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 ...uploadedUrls
             ];
 
-            // Prepare the update data
+            // Prepare the update data with variations
             const updateData = {
                 name: formData.name,
                 price: formData.price,
                 originalPrice: formData.originalPrice,
-                stockCount: formData.stockCount,
                 category: formData.category,
-                inStock: formData.inStock,
+                inStock: validVariations.some(v => v.quantity > 0),
                 description: formData.description,
                 features: formData.features.filter(f => f.trim() !== ''),
                 specifications: formData.specifications.filter(s => s.trim() !== ''),
-                images: finalImages
+                images: finalImages,
+                variations: validVariations
             };
 
-            // Update the product
+            // Update the product with variations
             await updateProduct(editingProduct.id, updateData);
 
             // Refresh the product list
@@ -287,9 +339,11 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
     if (!editingProduct) return null;
 
+    const totalStock = calculateTotalStock();
+
     return (
         <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
-            <DialogContent className="dialog-content">
+            <DialogContent className="dialog-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
                 <DialogHeader>
                     <DialogTitle>Edit Product</DialogTitle>
                 </DialogHeader>
@@ -311,7 +365,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="edit-price">Price (Ksh) *</Label>
+                            <Label htmlFor="edit-price">Base Price (Ksh) *</Label>
                             <Input
                                 id="edit-price"
                                 type="number"
@@ -357,34 +411,117 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                     <SelectItem value="furniture">Furniture</SelectItem>
                                     <SelectItem value="beauty">Beauty</SelectItem>
                                     <SelectItem value="clothing">Clothing</SelectItem>
+                                    <SelectItem value="home">Home</SelectItem>
+                                    <SelectItem value="sports">Sports</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    <div className="form-grid">
-                        <div className="form-field">
-                            <Label htmlFor="edit-stock">Stock Quantity *</Label>
-                            <Input
-                                id="edit-stock"
-                                type="number"
-                                min="0"
-                                value={formData.stockCount}
-                                onChange={(e) => setFormData({ ...formData, stockCount: parseInt(e.target.value) || 0 })}
-                                required
+                    {/* Variations Section */}
+                    <div className="form-field">
+                        <div className="field-header">
+                            <Label>Product Variations *</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addVariation}
                                 disabled={isSubmitting || loadingDetails}
-                            />
+                            >
+                                <Plus className="btn-icon" />
+                                Add Variation
+                            </Button>
                         </div>
-                        <div className="form-field">
+                        <div className="variations-list">
+                            {variations.map((variation, index) => (
+                                <div key={variation.id || index} className="variation-item">
+                                    <div className="variation-grid">
+                                        <div className="variation-field">
+                                            <Label htmlFor={`edit-color-${index}`}>Color *</Label>
+                                            <Input
+                                                id={`edit-color-${index}`}
+                                                value={variation.color}
+                                                onChange={(e) => updateVariation(index, 'color', e.target.value)}
+                                                placeholder="e.g., Red, Blue, Black"
+                                                required
+                                                disabled={isSubmitting || loadingDetails}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`edit-size-${index}`}>Size *</Label>
+                                            <Input
+                                                id={`edit-size-${index}`}
+                                                value={variation.size}
+                                                onChange={(e) => updateVariation(index, 'size', e.target.value)}
+                                                placeholder="e.g., S, M, L, XL"
+                                                required
+                                                disabled={isSubmitting || loadingDetails}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`edit-quantity-${index}`}>Quantity *</Label>
+                                            <Input
+                                                id={`edit-quantity-${index}`}
+                                                type="number"
+                                                min="0"
+                                                value={variation.quantity}
+                                                onChange={(e) => updateVariation(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                required
+                                                disabled={isSubmitting || loadingDetails}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`edit-price-adjustment-${index}`}>Price Adjustment (Ksh)</Label>
+                                            <Input
+                                                id={`edit-price-adjustment-${index}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={variation.price_adjustment || 0}
+                                                onChange={(e) => updateVariation(index, 'price_adjustment', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                                disabled={isSubmitting || loadingDetails}
+                                            />
+                                        </div>
+                                        <div className="variation-actions">
+                                            {variations.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeVariation(index)}
+                                                    disabled={isSubmitting || loadingDetails}
+                                                    className="remove-variation-btn"
+                                                >
+                                                    <X className="remove-icon" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {variation.price_adjustment !== 0 && (
+                                        <div className="price-preview">
+                                            Final Price: Ksh {(formData.price + (variation.price_adjustment || 0)).toFixed(2)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="stock-summary">
+                            Total Stock: <strong>{totalStock}</strong> units across {variations.length} variation(s)
+                        </div>
+                        <div className="in-stock-status">
                             <Label htmlFor="edit-inStock" className="flex items-center gap-2">
-                                <span>In Stock</span>
+                                <span>Product In Stock (automatically set based on variations)</span>
                                 <Switch
                                     id="edit-inStock"
                                     checked={formData.inStock}
-                                    onCheckedChange={(checked) => setFormData({ ...formData, inStock: checked })}
-                                    disabled={isSubmitting || loadingDetails}
+                                    disabled={true}
+                                    className="opacity-50"
                                 />
                             </Label>
+                            <div className="status-note">
+                                This is automatically determined by whether any variation has stock
+                            </div>
                         </div>
                     </div>
 

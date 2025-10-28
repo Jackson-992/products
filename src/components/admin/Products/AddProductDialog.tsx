@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Product } from '@/types/Product.ts';
-import { createProduct, uploadProductImage, updateProductImages } from '@/services/adminProductService.ts';
+import { createProduct, uploadProductImage, ProductVariation } from '@/services/adminProductService.ts';
 import './AddProductDialog.css';
 
 interface AddProductDialogProps {
@@ -29,12 +29,15 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
         name: '',
         price: 0,
         originalPrice: undefined as number | undefined,
-        stockCount: 0,
         category: '',
         description: '',
         features: [''],
         specifications: ['']
     });
+
+    const [variations, setVariations] = useState<ProductVariation[]>([
+        { color: '', size: '', quantity: 0, price_adjustment: 0 }
+    ]);
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -71,24 +74,37 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
         setIsLoading(true);
 
         try {
+            // Validate variations
+            const validVariations = variations.filter(v =>
+                v.color.trim() !== '' &&
+                v.size.trim() !== '' &&
+                v.quantity >= 0
+            );
+
+            if (validVariations.length === 0) {
+                alert('Please add at least one valid variation with color, size, and quantity.');
+                setIsLoading(false);
+                return;
+            }
+
             // First, upload all images
             let uploadedImageUrls: string[] = [];
             if (imageFiles.length > 0) {
                 uploadedImageUrls = await uploadImages();
             }
 
-            // Then create the product with the image URLs
+            // Then create the product with the image URLs and variations
             const product = await createProduct({
                 name: newProduct.name,
                 price: newProduct.price,
                 originalPrice: newProduct.originalPrice,
-                stockCount: newProduct.stockCount,
                 category: newProduct.category,
                 description: newProduct.description,
-                images: uploadedImageUrls, // Pass the uploaded image URLs
+                images: uploadedImageUrls,
                 features: newProduct.features.filter(f => f.trim() !== ''),
                 specifications: newProduct.specifications.filter(s => s.trim() !== ''),
-                inStock: newProduct.stockCount > 0
+                inStock: validVariations.some(v => v.quantity > 0),
+                variations: validVariations
             });
 
             setProducts(prev => [...prev, product]);
@@ -111,12 +127,41 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
             name: '',
             price: 0,
             originalPrice: undefined,
-            stockCount: 0,
             category: '',
             description: '',
             features: [''],
             specifications: ['']
         });
+        setVariations([{ color: '', size: '', quantity: 0, price_adjustment: 0 }]);
+    };
+
+    // Variation management functions
+    const addVariation = () => {
+        setVariations(prev => [
+            ...prev,
+            { color: '', size: '', quantity: 0, price_adjustment: 0 }
+        ]);
+    };
+
+    const removeVariation = (index: number) => {
+        if (variations.length > 1) {
+            setVariations(prev => prev.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateVariation = (index: number, field: keyof ProductVariation, value: string | number) => {
+        setVariations(prev => {
+            const newVariations = [...prev];
+            newVariations[index] = {
+                ...newVariations[index],
+                [field]: value
+            };
+            return newVariations;
+        });
+    };
+
+    const calculateTotalStock = () => {
+        return variations.reduce((total, variation) => total + (variation.quantity || 0), 0);
     };
 
     const addFeatureField = () => {
@@ -182,6 +227,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
         setIsOpen(false);
     };
 
+    const totalStock = calculateTotalStock();
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -190,7 +237,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                     Add Product
                 </Button>
             </DialogTrigger>
-            <DialogContent className="dialog-content">
+            <DialogContent className="dialog-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
                 <DialogHeader>
                     <DialogTitle>Add New Product</DialogTitle>
                 </DialogHeader>
@@ -207,7 +254,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                             />
                         </div>
                         <div className="form-field">
-                            <Label htmlFor="price">Price (Ksh) *</Label>
+                            <Label htmlFor="price">Base Price (Ksh) *</Label>
                             <Input
                                 id="price"
                                 type="number"
@@ -249,27 +296,107 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="electronics">electronics</SelectItem>
-                                    <SelectItem value="furniture">furniture</SelectItem>
-                                    <SelectItem value="beauty">beauty</SelectItem>
-                                    <SelectItem value="clothing">clothing</SelectItem>
+                                    <SelectItem value="electronics">Electronics</SelectItem>
+                                    <SelectItem value="furniture">Furniture</SelectItem>
+                                    <SelectItem value="beauty">Beauty</SelectItem>
+                                    <SelectItem value="clothing">Clothing</SelectItem>
+                                    <SelectItem value="home">Home</SelectItem>
+                                    <SelectItem value="sports">Sports</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    <div className="form-grid">
-                        <div className="form-field">
-                            <Label htmlFor="stock">Stock Quantity *</Label>
-                            <Input
-                                id="stock"
-                                type="number"
-                                min="0"
-                                value={newProduct.stockCount}
-                                onChange={(e) => setNewProduct({ ...newProduct, stockCount: parseInt(e.target.value) || 0 })}
-                                required
+                    {/* Variations Section */}
+                    <div className="form-field">
+                        <div className="field-header">
+                            <Label>Product Variations *</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addVariation}
                                 disabled={isLoading}
-                            />
+                            >
+                                <Plus className="btn-icon" />
+                                Add Variation
+                            </Button>
+                        </div>
+                        <div className="variations-list">
+                            {variations.map((variation, index) => (
+                                <div key={index} className="variation-item">
+                                    <div className="variation-grid">
+                                        <div className="variation-field">
+                                            <Label htmlFor={`color-${index}`}>Color *</Label>
+                                            <Input
+                                                id={`color-${index}`}
+                                                value={variation.color}
+                                                onChange={(e) => updateVariation(index, 'color', e.target.value)}
+                                                placeholder="e.g., Red, Blue, Black"
+                                                required
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`size-${index}`}>Size *</Label>
+                                            <Input
+                                                id={`size-${index}`}
+                                                value={variation.size}
+                                                onChange={(e) => updateVariation(index, 'size', e.target.value)}
+                                                placeholder="e.g., S, M, L, XL"
+                                                required
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`quantity-${index}`}>Quantity *</Label>
+                                            <Input
+                                                id={`quantity-${index}`}
+                                                type="number"
+                                                min="0"
+                                                value={variation.quantity}
+                                                onChange={(e) => updateVariation(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                required
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div className="variation-field">
+                                            <Label htmlFor={`price-adjustment-${index}`}>Price Adjustment (Ksh)</Label>
+                                            <Input
+                                                id={`price-adjustment-${index}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={variation.price_adjustment || 0}
+                                                onChange={(e) => updateVariation(index, 'price_adjustment', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div className="variation-actions">
+                                            {variations.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeVariation(index)}
+                                                    disabled={isLoading}
+                                                    className="remove-variation-btn"
+                                                >
+                                                    <X className="Remove-icon" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {variation.price_adjustment !== 0 && (
+                                        <div className="price-preview">
+                                            Final Price: Ksh {(newProduct.price + (variation.price_adjustment || 0)).toFixed(2)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="stock-summary">
+                            Total Stock: <strong>{totalStock}</strong> units across {variations.length} variation(s)
                         </div>
                     </div>
 
@@ -289,7 +416,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                         onClick={() => removeImage(index)}
                                         disabled={isLoading}
                                     >
-                                        <X className="remove-icon" />
+                                        <X className="Remove-icon" />
                                     </button>
                                 </div>
                             ))}
@@ -362,7 +489,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                             onClick={() => removeFeatureField(index)}
                                             disabled={isLoading}
                                         >
-                                            <X className="remove-icon" />
+                                            <X className="Remove-icon" />
                                         </Button>
                                     )}
                                 </div>
@@ -402,7 +529,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ setProducts }) => {
                                             onClick={() => removeSpecificationField(index)}
                                             disabled={isLoading}
                                         >
-                                            <X className="remove-icon" />
+                                            <X className="Remove-icon" />
                                         </Button>
                                     )}
                                 </div>

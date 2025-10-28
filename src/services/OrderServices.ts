@@ -1,12 +1,5 @@
 import { supabase } from './supabase';
-/**
- * Create a new order and order items
- * @param {Object} orderData - Order information
- * @param {bigint} orderData.user_id - User ID
- * @param {string} orderData.phone_number - Phone number
- * @param {Array} orderData.items - Array of cart items
- * @returns {Object} Result with order and order items data
- */
+
 export const createOrder = async (orderData) => {
     try {
         const { user_id, phone_number, items } = orderData;
@@ -36,26 +29,62 @@ export const createOrder = async (orderData) => {
             throw new Error(`Failed to create order: ${orderError.message}`);
         }
 
-        // 2. Create order items for each cart item
+        // 2. Create order items with variation data
         const orderItemsData = items.map(item => ({
             order_id: order.id,
             product_id: item.productId,
+            variation_id: item.variationId,      // NEW
+            color: item.color,                   // NEW
+            size: item.size,                     // NEW
+            product_sku: item.sku,               // NEW
             quantity: item.quantity,
             price: item.price,
             product_name: item.name,
-            // affiliate_id and commission_earned can be null/default
-            affiliate_id: null,
-            commission_earned: 0
+            affiliate_id: item.affiliate_id || null,
+            commission_earned: item.commission_earned || 0
         }));
 
         const { data: orderItems, error: orderItemsError } = await supabase
             .from('order_items')
             .insert(orderItemsData)
-            .select();
+            .select(`
+                *,
+                products (
+                    id,
+                    name,
+                    product_images,
+                    category
+                ),
+                product_variations (
+                    id,
+                    color,
+                    size,
+                    sku,
+                    quantity
+                )
+            `);
 
         if (orderItemsError) {
             console.error('Error creating order items:', orderItemsError);
             throw new Error(`Failed to create order items: ${orderItemsError.message}`);
+        }
+
+        // 3. Update product variation quantities (reduce stock)
+        for (const item of items) {
+            if (item.variationId) {
+                const { error: updateError } = await supabase
+                    .from('product_variations')
+                    .update({
+                        quantity: item.variationStock - item.quantity
+                    })
+                    .eq('id', item.variationId);
+
+                if (updateError) {
+                    console.error('Error updating variation stock:', updateError);
+                    // Don't throw here - we don't want to fail the entire order
+                    // due to stock update issues
+                }
+            }
         }
 
         return {
@@ -73,18 +102,27 @@ export const createOrder = async (orderData) => {
     }
 };
 
-/**
- * Get orders for a specific user
- * @param {bigint} userId - User ID
- * @returns {Object} Result with user's orders
- */
 export const getUserOrders = async (userId) => {
     try {
         const { data: orders, error } = await supabase
             .from('orders')
             .select(`
                 *,
-                order_items (*)
+                order_items (
+                    *,
+                    products (
+                        id,
+                        name,
+                        product_images,
+                        category
+                    ),
+                    product_variations (
+                        id,
+                        color,
+                        size,
+                        sku
+                    )
+                )
             `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
@@ -104,18 +142,27 @@ export const getUserOrders = async (userId) => {
     }
 };
 
-/**
- * Get order by ID with order items
- * @param {bigint} orderId - Order ID
- * @returns {Object} Result with order and items
- */
 export const getOrderById = async (orderId) => {
     try {
         const { data: order, error } = await supabase
             .from('orders')
             .select(`
                 *,
-                order_items (*)
+                order_items (
+                    *,
+                    products (
+                        id,
+                        name,
+                        product_images,
+                        category
+                    ),
+                    product_variations (
+                        id,
+                        color,
+                        size,
+                        sku
+                    )
+                )
             `)
             .eq('id', orderId)
             .single();
@@ -135,12 +182,6 @@ export const getOrderById = async (orderId) => {
     }
 };
 
-/**
- * Update order status
- * @param {bigint} orderId - Order ID
- * @param {string} status - New status
- * @returns {Object} Result with updated order
- */
 export const updateOrderStatus = async (orderId, status) => {
     try {
         const { data: order, error } = await supabase
@@ -168,11 +209,6 @@ export const updateOrderStatus = async (orderId, status) => {
     }
 };
 
-/**
- * Mark order payment as completed
- * @param {bigint} orderId - Order ID
- * @returns {Object} Result with updated order
- */
 export const completeOrderPayment = async (orderId) => {
     try {
         const { data: order, error } = await supabase
@@ -201,13 +237,26 @@ export const completeOrderPayment = async (orderId) => {
     }
 };
 
-/**
- * Delete an order and its items (admin function)
- * @param {bigint} orderId - Order ID
- * @returns {Object} Result of deletion
- */
 export const deleteOrder = async (orderId) => {
     try {
+        // First get order items to restore variation quantities
+        const { data: orderItems, error: itemsFetchError } = await supabase
+            .from('order_items')
+            .select('variation_id, quantity')
+            .eq('order_id', orderId);
+
+        if (itemsFetchError) throw itemsFetchError;
+
+        // Restore variation quantities
+        for (const item of orderItems || []) {
+            if (item.variation_id) {
+                await supabase.rpc('increment_variation_quantity', {
+                    variation_id: item.variation_id,
+                    increment_amount: item.quantity
+                });
+            }
+        }
+
         // First delete order items (due to foreign key constraint)
         const { error: itemsError } = await supabase
             .from('order_items')
@@ -237,12 +286,6 @@ export const deleteOrder = async (orderId) => {
     }
 };
 
-/**
- * Get all orders with pagination (admin function)
- * @param {number} page - Page number
- * @param {number} limit - Items per page
- * @returns {Object} Result with paginated orders
- */
 export const getAllOrders = async (page = 1, limit = 10) => {
     try {
         const from = (page - 1) * limit;
@@ -252,7 +295,21 @@ export const getAllOrders = async (page = 1, limit = 10) => {
             .from('orders')
             .select(`
                 *,
-                order_items (*)
+                order_items (
+                    *,
+                    products (
+                        id,
+                        name,
+                        product_images,
+                        category
+                    ),
+                    product_variations (
+                        id,
+                        color,
+                        size,
+                        sku
+                    )
+                )
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(from, to);
@@ -268,6 +325,104 @@ export const getAllOrders = async (page = 1, limit = 10) => {
         };
     } catch (error) {
         console.error('Error fetching all orders:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+};
+
+// NEW: Get order items with full product and variation details
+export const getOrderItemsWithDetails = async (orderId) => {
+    try {
+        const { data: orderItems, error } = await supabase
+            .from('order_items')
+            .select(`
+                *,
+                products (
+                    id,
+                    name,
+                    product_images,
+                    category,
+                    price as base_price
+                ),
+                product_variations (
+                    id,
+                    color,
+                    size,
+                    sku,
+                    price_adjustment
+                )
+            `)
+            .eq('order_id', orderId);
+
+        if (error) throw error;
+
+        return {
+            success: true,
+            orderItems: orderItems
+        };
+    } catch (error) {
+        console.error('Error fetching order items:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+};
+
+// NEW: Check variation availability before order creation
+export const checkVariationAvailability = async (items) => {
+    try {
+        const availabilityResults = [];
+
+        for (const item of items) {
+            if (item.variationId) {
+                const { data: variation, error } = await supabase
+                    .from('product_variations')
+                    .select('quantity, color, size, sku')
+                    .eq('id', item.variationId)
+                    .single();
+
+                if (error) {
+                    availabilityResults.push({
+                        productId: item.productId,
+                        variationId: item.variationId,
+                        available: false,
+                        error: 'Variation not found'
+                    });
+                    continue;
+                }
+
+                availabilityResults.push({
+                    productId: item.productId,
+                    variationId: item.variationId,
+                    available: variation.quantity >= item.quantity,
+                    currentStock: variation.quantity,
+                    requestedQuantity: item.quantity,
+                    color: variation.color,
+                    size: variation.size,
+                    sku: variation.sku
+                });
+            } else {
+                // Handle products without variations (backward compatibility)
+                availabilityResults.push({
+                    productId: item.productId,
+                    available: true, // Assume available for backward compatibility
+                    note: 'No variation specified'
+                });
+            }
+        }
+
+        const allAvailable = availabilityResults.every(result => result.available);
+
+        return {
+            success: true,
+            allAvailable: allAvailable,
+            availability: availabilityResults
+        };
+    } catch (error) {
+        console.error('Error checking variation availability:', error);
         return {
             success: false,
             error: error.message

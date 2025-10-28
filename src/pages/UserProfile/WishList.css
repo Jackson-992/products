@@ -179,7 +179,7 @@
     margin-bottom: 0.25rem;
 }
 
-.stock-badge {
+.Stock-badge {
     font-size: 0.75rem;
     font-weight: 600;
     padding: 0.25rem 0.5rem;
@@ -187,12 +187,12 @@
     text-transform: uppercase;
 }
 
-.stock-badge.in-stock {
+.Stock-badge.in-stock {
     background: #c6f6d5;
     color: #22543d;
 }
 
-.stock-badge.out-of-stock {
+.Stock-badge.out-of-stock {
     background: #fed7d7;
     color: #742a2a;
 }
@@ -309,7 +309,7 @@
 }
 
 /* Price Section */
-.price-section {
+.Price-section {
     margin-top: 0.5rem;
 }
 
@@ -347,31 +347,6 @@
     flex-direction: column;
     gap: 0.5rem;
     /*margin-top: 0.5rem;*/
-}
-
-.move-to-cart-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background: #e53e3e;
-    color: white;
-    border: none;
-    padding: 0.6rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
-}
-
-.move-to-cart-btn:hover:not(.disabled) {
-    background: #c53030;
-}
-
-.move-to-cart-btn.disabled {
-    background: #a0aec0;
-    cursor: not-allowed;
 }
 
 .view-details-btn {

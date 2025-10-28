@@ -6,7 +6,6 @@ import {
     removeFromWishList,
     clearWishList
 } from '@/services/WishlistSerices';
-import { addToCart } from '@/services/CartServices.ts'
 import './WishList.css';
 import { supabase } from "@/services/supabase.ts";
 import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
@@ -168,38 +167,6 @@ const WishList = () => {
         }
     };
 
-    const moveToCart = async (item) => {
-        if (!userProfile?.id) {
-            setError('User not authenticated');
-            return;
-        }
-
-        if (!item.inStock) {
-            alert('This item is currently out of stock');
-            return;
-        }
-
-        try {
-            const cartResult = await addToCart(userProfile.id, item.id, 1);
-
-            if (cartResult.success) {
-                // If successfully added to cart, remove from wishlist
-                await removeFromWishlist(item.id);
-                toast({
-                    title: "Moved to Cart Successfully",
-                    description: `${item.name} has been added to your Cart`,
-                    variant: "default",
-                    duration: 3000,
-                })
-            } else {
-                alert('Failed to add item to cart: ' + cartResult.error);
-            }
-        } catch (err) {
-            console.error('Error moving to cart:', err);
-            alert('Error moving item to cart');
-        }
-    };
-
     const calculateDiscount = (price, originalPrice) => {
         if (!originalPrice || originalPrice <= price) return 0;
         return Math.round(((originalPrice - price) / originalPrice) * 100);
@@ -268,7 +235,7 @@ const WishList = () => {
                         {wishlistItems.map((item) => (
                             <div key={item.wishlist_item_id} className="wishlist-card">
                                 <div className="card-header">
-                                    <span className={`stock-badge ${item.inStock ? 'in-stock' : 'out-of-stock'}`}>
+                                    <span className={`Stock-badge ${item.inStock ? 'in-stock' : 'out-of-stock'}`}>
                                         {item.inStock ? 'In Stock' : 'Out of Stock'}
                                     </span>
                                     <button
@@ -310,7 +277,7 @@ const WishList = () => {
                                         </span>
                                     </div>
 
-                                    <div className="price-section">
+                                    <div className="Price-section">
                                         <span className="current-price">Ksh {item.price.toLocaleString()}</span>
                                         {item.originalPrice > item.price && (
                                             <div className="price-details">
@@ -326,14 +293,6 @@ const WishList = () => {
                                 </div>
 
                                 <div className="card-actions">
-                                    <button
-                                        className={`move-to-cart-btn ${!item.inStock ? 'disabled' : ''}`}
-                                        onClick={() => moveToCart(item)}
-                                        disabled={!item.inStock}
-                                    >
-                                        <ShoppingCart size={18} />
-                                        {!item.inStock ? 'Out of Stock' : 'Move to Cart'}
-                                    </button>
                                     <button
                                         className="view-details-btn"
                                         onClick={() => navigate(`/product/${item.id}`)}
