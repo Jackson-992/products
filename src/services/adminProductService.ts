@@ -488,3 +488,16 @@ export const getProductDetails = async (productId: number): Promise<{
         specifications: data.specifications && data.specifications.length > 0 ? data.specifications : ['']
     };
 };
+
+// In your adminProductService or similar
+export const getProductDetailss = async (productId: number) => {
+    // Your implementation to fetch product details from backend
+    const response = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+
+    if (response.error) throw response.error;
+    return response.data;
+};

@@ -361,6 +361,77 @@
     border-left: 1px solid #d1d5db;
     border-right: 1px solid #d1d5db;
 }
+/* Add to Cart Form Overlay Styles */
+.add-to-cart-form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.add-to-cart-form-container {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.add-to-cart-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.add-to-cart-form-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Ensure the AddToCartForm component styles work well in the modal */
+.add-to-cart-form-container .add-to-cart-form {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.add-to-cart-form-container .add-to-cart-btn {
+    margin: 16px 24px 24px;
+    width: calc(100% - 48px);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .add-to-cart-form-overlay {
+        padding: 10px;
+    }
+
+    .add-to-cart-form-container {
+        max-width: 100%;
+        max-height: 95vh;
+    }
+
+    .add-to-cart-form-header {
+        padding: 16px 20px;
+    }
+
+    .add-to-cart-form-header h2 {
+        font-size: 1.25rem;
+    }
+}
 
 /* Action Buttons */
 .action-buttons {

@@ -11,14 +11,14 @@ import './Product-details.css';
 import { getProductDetails, ProductDetails, submitReview } from "@/services/ProductService.ts";
 import { Review } from "@/types/Product.ts";
 import { supabase } from '@/services/supabase';
-import { addToCart } from '@/services/CartServices'; // Import the addToCart function
-import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import { useToast } from '@/components/ui/use-toast';
 import {addToWishList} from "@/services/WishlistSerices.ts";
 import PurchaseForm from "@/pages/PurchaseForm.tsx";
+import AddToCartForm from "@/pages/UserProfile/AddToCartForm.tsx";
 
 const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const { toast } = useToast(); // Initialize toast
+    const { toast } = useToast();
     const navigate = useNavigate();
     const [productLoading, setProductLoading] = useState<boolean>(true);
     const [authLoading, setAuthLoading] = useState<boolean>(true);
@@ -28,10 +28,10 @@ const ProductDetailsPage: React.FC = () => {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
     const [user, setUser] = useState(null);
-    const [userProfile, setUserProfile] = useState(null); // Add userProfile state
-    const [addingToCart, setAddingToCart] = useState<boolean>(false); // Loading state for add to cart
+    const [userProfile, setUserProfile] = useState(null);
     const [addingToWish, setAddingToWish] = useState<boolean>(false);
-    const [showBuyForm,setShowBuyForm] = useState<boolean>(false)
+    const [showBuyForm, setShowBuyForm] = useState<boolean>(false);
+    const [showAddToCartForm, setShowAddToCartForm] = useState<boolean>(false); // New state for Add to Cart form
 
     useEffect(() => {
         const fetchProductDetails = async () => {
@@ -58,18 +58,16 @@ const ProductDetailsPage: React.FC = () => {
     }, [id]);
 
     useEffect(() => {
-        // Get initial session and user profile
         const getSessionAndProfile = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 setUser(session?.user ?? null);
 
-                // If user is logged in, get their profile with integer ID
                 if (session?.user) {
                     const { data: profile, error } = await supabase
                         .from('user_profiles')
                         .select('*')
-                        .eq('auth_id', session.user.id) // Adjust this to match your column name
+                        .eq('auth_id', session.user.id)
                         .single();
 
                     if (error) {
@@ -87,11 +85,9 @@ const ProductDetailsPage: React.FC = () => {
 
         getSessionAndProfile();
 
-        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setUser(session?.user ?? null);
 
-            // Update user profile when auth changes
             if (session?.user) {
                 const { data: profile, error } = await supabase
                     .from('user_profiles')
@@ -113,7 +109,6 @@ const ProductDetailsPage: React.FC = () => {
     const handleBuyNow = () => {
         if (!product || !id) return;
 
-        // Check if user is logged in
         if (!user || !userProfile) {
             toast({
                 title: "Login Required",
@@ -132,7 +127,6 @@ const ProductDetailsPage: React.FC = () => {
             return;
         }
 
-        // Check if product is in stock
         if (!product.inStock) {
             toast({
                 title: "Out of Stock",
@@ -148,12 +142,8 @@ const ProductDetailsPage: React.FC = () => {
         setShowBuyForm(false);
     };
 
-    // Add to Cart Handler
-    const handleAddToCart = async () => {
-        console.log('Add to cart clicked');
-        console.log('User:', user);
-        console.log('User Profile:', userProfile);
-        console.log('Auth Loading:', authLoading);
+    // New function to handle Add to Cart button click
+    const handleAddToCartClick = () => {
         if (!product || !id) return;
 
         // Check if user is logged in
@@ -181,47 +171,21 @@ const ProductDetailsPage: React.FC = () => {
                 title: "Out of Stock",
                 description: "This product is out of stock and no longer available for purchase.",
                 variant: "default",
-
             });
             return;
         }
 
-        setAddingToCart(true);
-        try {
-            const result = await addToCart(userProfile.id, parseInt(id), quantity);
+        // Show the Add to Cart form
+        setShowAddToCartForm(true);
+    };
 
-            if (result.success) {
-                toast({
-                    title: "Added to Cart!",
-                    description: `${product.name} has been added to your cart`,
-                    variant: "default",
-                    duration: 3000,
-                });
-
-            } else {
-                //console.error('Failed to add to cart:', result.error);
-                toast({
-                    title: "Error adding to cart",
-                    description: "Failed to add item to cart. Please try again.",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-            toast({
-                title: "Error adding to cart",
-                description: "Failed to add item to cart. Please try again.",
-                variant: "destructive",
-            });
-        } finally {
-            setAddingToCart(false);
-        }
+    const handleCloseAddToCartForm = () => {
+        setShowAddToCartForm(false);
     };
 
     const handleAddToWishlist = async () => {
         if (!product || !id) return;
 
-        // Check if user is logged in
         if (!user || !userProfile) {
             toast({
                 title: "Login Required",
@@ -321,7 +285,6 @@ const ProductDetailsPage: React.FC = () => {
         }
     };
 
-    // Show loading spinner while product data is loading
     if (productLoading) {
         return (
             <div className="loading-container">
@@ -330,7 +293,6 @@ const ProductDetailsPage: React.FC = () => {
         );
     }
 
-    // Show error if product not found
     if (!product) {
         return (
             <div className="product-details-container">
@@ -356,7 +318,6 @@ const ProductDetailsPage: React.FC = () => {
     return (
         <div className="product-details-container">
             <div className="product-details-wrapper">
-                {/* Back Button */}
                 <Button
                     variant="ghost"
                     onClick={() => navigate(-1)}
@@ -367,7 +328,6 @@ const ProductDetailsPage: React.FC = () => {
                 </Button>
 
                 <div className="product-grid">
-                    {/* Product Images */}
                     <div className="product-images-section">
                         <div className="main-image-container">
                             <img
@@ -397,7 +357,6 @@ const ProductDetailsPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Product Info */}
                     <div className="product-info-section">
                         <div className="product-header">
                             <Badge variant="secondary" className="category-badge">
@@ -442,7 +401,7 @@ const ProductDetailsPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Stock and Quantity */}
+                        {/* Stock and Quantity - Keep the original layout */}
                         <div className="stock-quantity-section">
                             <div className="stock-status">
                                 <span className="stock-text">
@@ -480,25 +439,16 @@ const ProductDetailsPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Action Buttons */}
+                        {/* Action Buttons - Keep the original Add to Cart button */}
                         <div className="action-buttons">
                             <Button
                                 size="lg"
                                 className="add-to-cart-button"
-                                disabled={!product.inStock || addingToCart}
-                                onClick={handleAddToCart}
+                                disabled={!product.inStock}
+                                onClick={handleAddToCartClick} // Updated to show form
                             >
-                                {addingToCart ? (
-                                    <>
-                                        <div className="spinner"></div>
-                                        Adding...
-                                    </>
-                                ) : (
-                                    <>
-                                        <ShoppingCart className="cart-icon" />
-                                        Add to Cart
-                                    </>
-                                )}
+                                <ShoppingCart className="cart-icon" />
+                                Add to Cart
                             </Button>
                             <div className="secondary-buttons">
                                 <Button
@@ -611,7 +561,6 @@ const ProductDetailsPage: React.FC = () => {
 
                     <TabsContent value="reviews" className="tab-content">
                         <div className="reviews-tab-content">
-                            {/* Review Form - Only show if user is logged in and auth has loaded */}
                             {!authLoading && user && (
                                 <ReviewForm
                                     productId={id!}
@@ -620,7 +569,6 @@ const ProductDetailsPage: React.FC = () => {
                                 />
                             )}
 
-                            {/* Existing Reviews */}
                             <Card className="reviews-card">
                                 <CardContent className="reviews-content">
                                     <h3 className="reviews-title">Customer Reviews ({reviews.length})</h3>
@@ -663,6 +611,7 @@ const ProductDetailsPage: React.FC = () => {
                     </TabsContent>
                 </Tabs>
 
+                {/* Buy Now Form Overlay */}
                 {showBuyForm && (
                     <div className="purchase-form-overlay">
                         <div className="purchase-form-container">
@@ -691,6 +640,35 @@ const ProductDetailsPage: React.FC = () => {
                                 }]}
                                 onClose={handleCloseBuyForm}
                                 userId={userProfile.id}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Add to Cart Form Overlay */}
+                {showAddToCartForm && (
+                    <div className="add-to-cart-form-overlay">
+                        <div className="add-to-cart-form-container">
+                            <div className="add-to-cart-form-header">
+                                <h2>Select Options</h2>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleCloseAddToCartForm}
+                                    className="close-button"
+                                >
+                                    <X className="close-icon" />
+                                </Button>
+                            </div>
+                            <AddToCartForm
+                                product={{
+                                    id: product.id,
+                                    name: product.name,
+                                    price: product.price,
+                                    originalPrice: product.originalPrice,
+                                    images: product.images
+                                }}
+                                onClose={handleCloseAddToCartForm}
                             />
                         </div>
                     </div>

@@ -256,17 +256,8 @@ const Cart = () => {
         return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
     };
 
-    const calculateDiscount = () => {
-        return cartItems.reduce((total, item) => {
-            if (item.originalPrice > item.price) {
-                return total + ((item.originalPrice - item.price) * item.quantity);
-            }
-            return total;
-        }, 0);
-    };
-
     const calculateTotal = () => {
-        return calculateSubtotal() - calculateDiscount();
+        return calculateSubtotal()
     };
 
     const shippingCost = calculateSubtotal() > 5000 ? 0 : 300;
@@ -461,13 +452,6 @@ const Cart = () => {
                                     <span>Subtotal ({cartItems.reduce((total, item) => total + item.quantity, 0)} items)</span>
                                     <span>Ksh {calculateSubtotal().toLocaleString()}</span>
                                 </div>
-
-                                {calculateDiscount() > 0 && (
-                                    <div className="summary-row discount">
-                                        <span>Discount</span>
-                                        <span>- Ksh {calculateDiscount().toLocaleString()}</span>
-                                    </div>
-                                )}
 
                                 <div className="summary-row">
                                     <span>Shipping</span>

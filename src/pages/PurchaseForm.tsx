@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2 } from 'lucide-react';
 import { createOrder, checkVariationAvailability } from '@/services/OrderServices';
-import { getProductVariations } from '@/services/adminProductService';
+import { getProductVariations, getProductDetails } from '@/services/CheckOut.ts';
 import './PurchaseForm.css';
 
 interface ProductVariation {
     id: number;
+    product_id: number;
     color: string;
     size: string;
     quantity: number;
-    price_adjustment?: number;
+    price_adjustment: number;
     sku?: string;
 }
 
@@ -20,19 +21,17 @@ interface CartItem {
     id: string;
     productId: number;
     name: string;
-    price: number; // This should be the FINAL price (base price or sale price)
-    originalPrice: number; // Original price before any discounts
+    price: number; // This is the FINAL price (base + adjustment)
+    originalPrice: number;
     image: string;
     quantity: number;
     inStock: boolean;
     category: string;
-    // New variation fields
     variationId?: number;
     color?: string;
     size?: string;
     sku?: string;
     variationStock?: number;
-    basePrice?: number; // Add base price to track the product's base price without variations
 }
 
 interface PurchaseFormProps {
@@ -41,79 +40,150 @@ interface PurchaseFormProps {
     userId: string;
 }
 
+interface ProductDetails {
+    id: number;
+    name: string;
+    price: number;
+    originalprice: number;
+    product_images: string[];
+    category: string;
+}
+
 const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId }) => {
     const { toast } = useToast();
     const [phoneNumber, setPhoneNumber] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [selectedItems, setSelectedItems] = useState<CartItem[]>([]);
     const [productVariations, setProductVariations] = useState<{[key: number]: ProductVariation[]}>({});
-    const [loadingVariations, setLoadingVariations] = useState<boolean>(true);
+    const [productDetails, setProductDetails] = useState<{[key: number]: ProductDetails}>({});
+    const [loading, setLoading] = useState<boolean>(true);
+    const variationsLoadedRef = useRef<boolean>(false);
 
-    // Initialize selectedItems with base prices
+    // Fetch product details and variations directly from backend
     useEffect(() => {
-        const initializedItems = cartItems.map(item => ({
-            ...item,
-            basePrice: item.price // Store the current price as base price
-        }));
-        setSelectedItems(initializedItems);
-    }, [cartItems]);
+        const loadProductData = async () => {
+            if (variationsLoadedRef.current || cartItems.length === 0) {
+                return;
+            }
 
-    // Load product variations when component mounts
-    useEffect(() => {
-        const loadVariations = async () => {
             try {
-                setLoadingVariations(true);
+                setLoading(true);
                 const variationsMap: {[key: number]: ProductVariation[]} = {};
+                const detailsMap: {[key: number]: ProductDetails} = {};
+                const updatedItems: CartItem[] = [];
 
-                for (const item of selectedItems) {
+                // Get unique product IDs
+                const uniqueProductIds = Array.from(new Set(cartItems.map(item => item.productId)));
+
+                // Load product details and variations for all unique products
+                for (const productId of uniqueProductIds) {
                     try {
-                        const variations = await getProductVariations(item.productId);
-                        variationsMap[item.productId] = variations;
+                        // Fetch product details
+                        const productDetails = await getProductDetails(productId);
+                        detailsMap[productId] = productDetails;
 
-                        // Auto-select first available variation if none selected
-                        if (!item.variationId && variations.length > 0) {
-                            const availableVariation = variations.find(v => v.quantity > 0) || variations[0];
-                            const finalPrice = item.basePrice! + (availableVariation.price_adjustment || 0);
-
-                            setSelectedItems(prev => prev.map(prevItem =>
-                                prevItem.productId === item.productId
-                                    ? {
-                                        ...prevItem,
-                                        variationId: availableVariation.id,
-                                        color: availableVariation.color,
-                                        size: availableVariation.size,
-                                        sku: availableVariation.sku,
-                                        variationStock: availableVariation.quantity,
-                                        price: finalPrice // Update price with variation adjustment
-                                    }
-                                    : prevItem
-                            ));
-                        }
+                        // Fetch product variations
+                        const variations = await getProductVariations(productId);
+                        variationsMap[productId] = variations;
                     } catch (error) {
-                        console.error(`Error loading variations for product ${item.productId}:`, error);
-                        variationsMap[item.productId] = [];
+                        console.error(`Error loading data for product ${productId}:`, error);
+                        // Use fallback data from cart items
+                        const cartItem = cartItems.find(item => item.productId === productId);
+                        detailsMap[productId] = {
+                            id: productId,
+                            name: cartItem?.name || 'Product',
+                            price: cartItem?.price || 0,
+                            originalprice: cartItem?.originalPrice || cartItem?.price || 0,
+                            product_images: [cartItem?.image || ''],
+                            category: cartItem?.category || 'General'
+                        };
+                        variationsMap[productId] = [];
                     }
                 }
 
+                // Process each cart item with fresh data from backend
+                for (const item of cartItems) {
+                    const productDetail = detailsMap[item.productId];
+                    const variations = variationsMap[item.productId] || [];
+
+                    // Find the current variation from cart
+                    let currentVariation: ProductVariation | undefined;
+                    if (item.variationId) {
+                        currentVariation = variations.find(v => v.id === item.variationId);
+                    }
+
+                    // If variation not found but we have color/size, try to find matching variation
+                    if (!currentVariation && item.color && item.size) {
+                        currentVariation = variations.find(v =>
+                            v.color === item.color && v.size === item.size
+                        );
+                    }
+
+                    // If still no variation found, use first available variation
+                    if (!currentVariation && variations.length > 0) {
+                        currentVariation = variations.find(v => v.quantity > 0) || variations[0];
+                    }
+
+                    let finalPrice = item.price; // Start with the cart's final price
+                    let variationId = currentVariation?.id;
+                    let color = currentVariation?.color || item.color;
+                    let size = currentVariation?.size || item.size;
+                    let sku = currentVariation?.sku || item.sku;
+                    let variationStock = currentVariation?.quantity || 0;
+
+                    // If we found a variation, use its data but KEEP the original cart price
+                    // This prevents double-adding price adjustments
+                    if (currentVariation) {
+                        variationId = currentVariation.id;
+                        color = currentVariation.color;
+                        size = currentVariation.size;
+                        sku = currentVariation.sku;
+                        variationStock = currentVariation.quantity;
+
+                        // DON'T recalculate price - use the cart's stored price
+                        // The cart price should already include the variation adjustment
+                    }
+
+                    const updatedItem: CartItem = {
+                        ...item,
+                        name: productDetail.name,
+                        price: finalPrice, // Keep the original cart price
+                        originalPrice: productDetail.originalprice,
+                        image: productDetail.product_images?.[0] || item.image,
+                        category: productDetail.category,
+                        inStock: variationStock > 0,
+                        variationId,
+                        color,
+                        size,
+                        sku,
+                        variationStock
+                    };
+
+                    updatedItems.push(updatedItem);
+                }
+
+                setProductDetails(detailsMap);
                 setProductVariations(variationsMap);
+                setSelectedItems(updatedItems);
+                variationsLoadedRef.current = true;
             } catch (error) {
-                console.error('Error loading product variations:', error);
+                console.error('Error loading product data:', error);
                 toast({
                     title: "Error",
-                    description: "Failed to load product variations",
+                    description: "Failed to load product information",
                     variant: "destructive",
                 });
+                // Fallback to original cart items
+                setSelectedItems(cartItems);
             } finally {
-                setLoadingVariations(false);
+                setLoading(false);
             }
         };
 
-        if (selectedItems.length > 0) {
-            loadVariations();
-        }
-    }, [selectedItems, toast]);
+        loadProductData();
+    }, [cartItems, toast]);
 
-    // Calculate totals - use the current price which includes variation adjustments
+    // Calculate totals
     const calculateSubtotal = () => {
         return selectedItems.reduce((total, item) => total + (item.price * item.quantity), 0);
     };
@@ -125,20 +195,20 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
     const shippingCost = calculateSubtotal() > 5000 ? 0 : 300;
     const totalAmount = calculateSubtotal() + shippingCost;
 
-    const handleItemQuantityChange = (productId: number, newQuantity: number) => {
+    const handleItemQuantityChange = (itemId: string, newQuantity: number) => {
         if (newQuantity < 1) return;
 
         setSelectedItems(prev =>
             prev.map(item =>
-                item.productId === productId
+                item.id === itemId
                     ? { ...item, quantity: newQuantity }
                     : item
             )
         );
     };
 
-    const handleRemoveItem = (productId: number) => {
-        setSelectedItems(prev => prev.filter(item => item.productId !== productId));
+    const handleRemoveItem = (itemId: string) => {
+        setSelectedItems(prev => prev.filter(item => item.id !== itemId));
 
         if (selectedItems.length === 1) {
             toast({
@@ -150,33 +220,45 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         }
     };
 
-    const handleVariationChange = (productId: number, variationId: number) => {
-        const variations = productVariations[productId];
-        const selectedVariation = variations.find(v => v.id === variationId);
+    const handleVariationChange = (itemId: string, variationId: number) => {
+        setSelectedItems(prev =>
+            prev.map(item => {
+                if (item.id === itemId) {
+                    const variations = productVariations[item.productId];
+                    const selectedVariation = variations?.find(v => v.id === variationId);
 
-        if (selectedVariation) {
-            const originalItem = selectedItems.find(item => item.productId === productId);
-            if (!originalItem || !originalItem.basePrice) return;
+                    if (selectedVariation) {
+                        const productDetail = productDetails[item.productId];
 
-            // Calculate final price: base price + variation adjustment
-            const finalPrice = originalItem.basePrice + (selectedVariation.price_adjustment || 0);
+                        // Calculate new price: base price + variation adjustment
+                        const basePrice = productDetail?.originalprice > productDetail?.price
+                            ? productDetail.originalprice
+                            : productDetail?.price || item.originalPrice;
 
-            setSelectedItems(prev =>
-                prev.map(item =>
-                    item.productId === productId
-                        ? {
+                        const finalPrice = basePrice + (selectedVariation.price_adjustment || 0);
+
+                        console.log('Price calculation:', {
+                            basePrice,
+                            adjustment: selectedVariation.price_adjustment,
+                            finalPrice,
+                            previousPrice: item.price
+                        });
+
+                        return {
                             ...item,
                             variationId: selectedVariation.id,
                             color: selectedVariation.color,
                             size: selectedVariation.size,
                             sku: selectedVariation.sku,
                             variationStock: selectedVariation.quantity,
-                            price: finalPrice
-                        }
-                        : item
-                )
-            );
-        }
+                            price: finalPrice,
+                            quantity: Math.min(item.quantity, selectedVariation.quantity)
+                        };
+                    }
+                }
+                return item;
+            })
+        );
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -253,7 +335,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                 size: item.size!,
                 sku: item.sku!,
                 name: item.name,
-                price: item.price, // This is the final price including variation adjustments
+                price: item.price,
                 quantity: item.quantity,
                 variationStock: item.variationStock!,
                 affiliate_id: null,
@@ -278,7 +360,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
             });
 
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Order creation error:', error);
             toast({
                 title: "Error",
@@ -294,8 +376,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         return productVariations[productId] || [];
     };
 
-    const getCurrentVariation = (productId: number) => {
-        const item = selectedItems.find(item => item.productId === productId);
+    const getCurrentVariation = (itemId: string) => {
+        const item = selectedItems.find(item => item.id === itemId);
         return item ? {
             variationId: item.variationId,
             color: item.color,
@@ -303,12 +385,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         } : null;
     };
 
-    // Helper function to display price with original price if available
+    // Helper function to display price
     const renderPrice = (item: CartItem) => {
-        // Show original price only if it's different from base price (sale scenario)
-        const shouldShowOriginalPrice = item.originalPrice > item.basePrice!;
+        const hasDiscount = item.originalPrice > item.price;
 
-        if (shouldShowOriginalPrice) {
+        if (hasDiscount) {
             return (
                 <div className="price-display">
                     <span className="current-price">Ksh {item.price.toLocaleString()}</span>
@@ -320,10 +401,27 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
     };
 
     // Calculate variation price for dropdown display
-    const getVariationDisplayPrice = (item: CartItem, variation: ProductVariation) => {
-        const basePrice = item.basePrice || item.price;
+    const getVariationDisplayPrice = (productId: number, variation: ProductVariation) => {
+        const productDetail = productDetails[productId];
+        if (!productDetail) return variation.price_adjustment || 0;
+
+        const basePrice = productDetail.originalprice > productDetail.price
+            ? productDetail.originalprice
+            : productDetail.price;
+
         return basePrice + (variation.price_adjustment || 0);
     };
+
+    if (loading) {
+        return (
+            <div className="purchase-form">
+                <div className="purchase-form-loading">
+                    <div className="loading-spinner"></div>
+                    <p>Loading product information...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="purchase-form">
@@ -337,10 +435,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                         <div className="cart-items-list">
                             {selectedItems.map((item) => {
                                 const variations = getAvailableVariations(item.productId);
-                                const currentVariation = getCurrentVariation(item.productId);
+                                const currentVariation = getCurrentVariation(item.id);
 
                                 return (
-                                    <div key={item.productId} className="cart-item">
+                                    <div key={item.id} className="cart-item">
                                         <div className="product-image-container">
                                             <img
                                                 src={item.image}
@@ -361,13 +459,13 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                         <label className="variation-label">Select Variation:</label>
                                                         <select
                                                             value={currentVariation?.variationId || ''}
-                                                            onChange={(e) => handleVariationChange(item.productId, parseInt(e.target.value))}
+                                                            onChange={(e) => handleVariationChange(item.id, parseInt(e.target.value))}
                                                             className="variation-dropdown"
-                                                            disabled={isSubmitting || loadingVariations}
+                                                            disabled={isSubmitting}
                                                         >
                                                             <option value="">Choose variation...</option>
                                                             {variations.map((variation) => {
-                                                                const variationPrice = getVariationDisplayPrice(item, variation);
+                                                                const variationPrice = getVariationDisplayPrice(item.productId, variation);
                                                                 return (
                                                                     <option
                                                                         key={variation.id}
@@ -377,6 +475,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                                         {variation.color} - {variation.size}
                                                                         {variation.quantity === 0 ? ' (Out of Stock)' : ` (${variation.quantity} available)`}
                                                                         {` - Ksh ${variationPrice.toLocaleString()}`}
+                                                                        {variation.price_adjustment ? ` (${variation.price_adjustment > 0 ? '+' : ''}${variation.price_adjustment})` : ''}
                                                                     </option>
                                                                 );
                                                             })}
@@ -398,7 +497,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                 <button
                                                     type="button"
                                                     className="remove-Item-btn"
-                                                    onClick={() => handleRemoveItem(item.productId)}
+                                                    onClick={() => handleRemoveItem(item.id)}
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
@@ -411,7 +510,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                         <button
                                                             type="button"
                                                             className="quantity-btn"
-                                                            onClick={() => handleItemQuantityChange(item.productId, item.quantity - 1)}
+                                                            onClick={() => handleItemQuantityChange(item.id, item.quantity - 1)}
                                                             disabled={item.quantity <= 1 || isSubmitting}
                                                         >
                                                             -
@@ -420,7 +519,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                         <button
                                                             type="button"
                                                             className="quantity-btn"
-                                                            onClick={() => handleItemQuantityChange(item.productId, item.quantity + 1)}
+                                                            onClick={() => handleItemQuantityChange(item.id, item.quantity + 1)}
                                                             disabled={isSubmitting || (item.variationStock !== undefined && item.quantity >= item.variationStock)}
                                                         >
                                                             +
@@ -502,7 +601,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isSubmitting || selectedItems.length === 0 || loadingVariations}
+                        disabled={isSubmitting || selectedItems.length === 0 || loading}
                         className="submit-button"
                     >
                         {isSubmitting ? (
@@ -510,8 +609,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                 <div className="spinner"></div>
                                 Processing...
                             </>
-                        ) : loadingVariations ? (
-                            "Loading variations..."
                         ) : (
                             `Pay Ksh ${totalAmount.toLocaleString()}`
                         )}
