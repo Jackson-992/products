@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, AlertCircle, X} from 'lucide-react';
+import { ArrowLeft, Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,9 +10,9 @@ import ReviewForm from './ReviewForm.tsx';
 import './Product-details.css';
 import { getProductDetails, ProductDetails, submitReview } from "@/services/ProductService.ts";
 import { Review } from "@/types/Product.ts";
-import { supabase } from '@/services/supabase';
+import { useAuth } from '@/contexts/AuthContext'; // Import the auth context
 import { useToast } from '@/components/ui/use-toast';
-import {addToWishList} from "@/services/WishlistSerices.ts";
+import { addToWishList } from "@/services/WishlistSerices.ts";
 import PurchaseForm from "@/pages/PurchaseForm.tsx";
 import AddToCartForm from "@/pages/UserProfile/AddToCartForm.tsx";
 
@@ -20,18 +20,16 @@ const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { toast } = useToast();
     const navigate = useNavigate();
+    const { user, userProfile, isLoading: authLoading } = useAuth(); // Use auth context
     const [productLoading, setProductLoading] = useState<boolean>(true);
-    const [authLoading, setAuthLoading] = useState<boolean>(true);
     const [selectedImage, setSelectedImage] = useState<number>(0);
     const [quantity, setQuantity] = useState<number>(1);
     const [product, setProduct] = useState<ProductDetails | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
-    const [user, setUser] = useState(null);
-    const [userProfile, setUserProfile] = useState(null);
     const [addingToWish, setAddingToWish] = useState<boolean>(false);
     const [showBuyForm, setShowBuyForm] = useState<boolean>(false);
-    const [showAddToCartForm, setShowAddToCartForm] = useState<boolean>(false); // New state for Add to Cart form
+    const [showAddToCartForm, setShowAddToCartForm] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchProductDetails = async () => {
@@ -57,57 +55,18 @@ const ProductDetailsPage: React.FC = () => {
         fetchProductDetails();
     }, [id]);
 
-    useEffect(() => {
-        const getSessionAndProfile = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                setUser(session?.user ?? null);
-
-                if (session?.user) {
-                    const { data: profile, error } = await supabase
-                        .from('user_profiles')
-                        .select('*')
-                        .eq('auth_id', session.user.id)
-                        .single();
-
-                    if (error) {
-                        console.error('Error fetching user profile:', error);
-                    } else {
-                        setUserProfile(profile);
-                    }
-                }
-            } catch (error) {
-                console.error('Error in session setup:', error);
-            } finally {
-                setAuthLoading(false);
-            }
-        };
-
-        getSessionAndProfile();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setUser(session?.user ?? null);
-
-            if (session?.user) {
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', session.user.id)
-                    .single();
-
-                if (!error) {
-                    setUserProfile(profile);
-                }
-            } else {
-                setUserProfile(null);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
     const handleBuyNow = () => {
         if (!product || !id) return;
+
+        // Check if auth is still loading
+        if (authLoading) {
+            toast({
+                title: "Please wait",
+                description: "Checking authentication...",
+                variant: "default",
+            });
+            return;
+        }
 
         if (!user || !userProfile) {
             toast({
@@ -142,11 +101,19 @@ const ProductDetailsPage: React.FC = () => {
         setShowBuyForm(false);
     };
 
-    // New function to handle Add to Cart button click
     const handleAddToCartClick = () => {
         if (!product || !id) return;
 
-        // Check if user is logged in
+        // Check if auth is still loading
+        if (authLoading) {
+            toast({
+                title: "Please wait",
+                description: "Checking authentication...",
+                variant: "default",
+            });
+            return;
+        }
+
         if (!user || !userProfile) {
             toast({
                 title: "Login Required",
@@ -165,7 +132,6 @@ const ProductDetailsPage: React.FC = () => {
             return;
         }
 
-        // Check if product is in stock
         if (!product.inStock) {
             toast({
                 title: "Out of Stock",
@@ -175,7 +141,6 @@ const ProductDetailsPage: React.FC = () => {
             return;
         }
 
-        // Show the Add to Cart form
         setShowAddToCartForm(true);
     };
 
@@ -185,6 +150,16 @@ const ProductDetailsPage: React.FC = () => {
 
     const handleAddToWishlist = async () => {
         if (!product || !id) return;
+
+        // Check if auth is still loading
+        if (authLoading) {
+            toast({
+                title: "Please wait",
+                description: "Checking authentication...",
+                variant: "default",
+            });
+            return;
+        }
 
         if (!user || !userProfile) {
             toast({
@@ -327,6 +302,7 @@ const ProductDetailsPage: React.FC = () => {
                     Back to Products
                 </Button>
 
+
                 <div className="product-grid">
                     <div className="product-images-section">
                         <div className="main-image-container">
@@ -401,7 +377,7 @@ const ProductDetailsPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Stock and Quantity - Keep the original layout */}
+                        {/* Stock and Quantity */}
                         <div className="stock-quantity-section">
                             <div className="stock-status">
                                 <span className="stock-text">
@@ -439,16 +415,16 @@ const ProductDetailsPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Action Buttons - Keep the original Add to Cart button */}
+                        {/* Action Buttons */}
                         <div className="action-buttons">
                             <Button
                                 size="lg"
                                 className="add-to-cart-button"
-                                disabled={!product.inStock}
-                                onClick={handleAddToCartClick} // Updated to show form
+                                disabled={!product.inStock || authLoading}
+                                onClick={handleAddToCartClick}
                             >
                                 <ShoppingCart className="cart-icon" />
-                                Add to Cart
+                                {authLoading ? "Checking..." : "Add to Cart"}
                             </Button>
                             <div className="secondary-buttons">
                                 <Button
@@ -456,7 +432,7 @@ const ProductDetailsPage: React.FC = () => {
                                     size="lg"
                                     className="wishlist-button"
                                     onClick={handleAddToWishlist}
-                                    disabled={addingToWish}
+                                    disabled={addingToWish || authLoading}
                                 >
                                     {addingToWish ? (
                                         <>
@@ -466,7 +442,7 @@ const ProductDetailsPage: React.FC = () => {
                                     ) : (
                                         <>
                                             <Heart className="wishlist-icon" />
-                                            Save
+                                            {authLoading ? "Checking..." : "Save"}
                                         </>
                                     )}
                                 </Button>
@@ -475,9 +451,9 @@ const ProductDetailsPage: React.FC = () => {
                                     size="lg"
                                     className="buy-now-button"
                                     onClick={handleBuyNow}
-                                    disabled={!product.inStock}
+                                    disabled={!product.inStock || authLoading}
                                 >
-                                    Buy Now
+                                    {authLoading ? "Checking..." : "Buy Now"}
                                 </Button>
                             </div>
                         </div>
@@ -639,7 +615,7 @@ const ProductDetailsPage: React.FC = () => {
                                     category: product.category
                                 }]}
                                 onClose={handleCloseBuyForm}
-                                userId={userProfile.id}
+                                userId={userProfile?.id}
                             />
                         </div>
                     </div>

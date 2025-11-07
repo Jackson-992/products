@@ -1,107 +1,45 @@
-// Products.jsx
 import React, { useState, useEffect } from 'react';
+import { getProducts } from '@/services/ProductService.ts'; // Adjust import path as needed
 import './AvailableProducts.css';
+import { useToast } from '@/components/ui/use-toast';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('All');
-
-    // Mock affiliate product data
-    const mockProducts = [
-        {
-            id: 1,
-            name: "Wireless Earbuds Pro",
-            clicks: 1247,
-            conversions: 89,
-            commission: "$4.50",
-            price: "$129.99",
-            status: "Active",
-            category: "Electronics"
-        },
-        {
-            id: 2,
-            name: "Fitness Tracker Watch",
-            clicks: 892,
-            conversions: 45,
-            commission: "$3.20",
-            price: "$79.99",
-            status: "Active",
-            category: "Fitness"
-        },
-        {
-            id: 3,
-            name: "Organic Skincare Set",
-            clicks: 567,
-            conversions: 23,
-            commission: "$8.75",
-            price: "$49.99",
-            status: "Low",
-            category: "Beauty"
-        },
-        {
-            id: 4,
-            name: "Gaming Keyboard RGB",
-            clicks: 2103,
-            conversions: 156,
-            commission: "$6.25",
-            price: "$89.99",
-            status: "High",
-            category: "Gaming"
-        },
-        {
-            id: 5,
-            name: "Yoga Mat Premium",
-            clicks: 431,
-            conversions: 34,
-            commission: "$5.50",
-            price: "$34.99",
-            status: "Active",
-            category: "Fitness"
-        },
-        {
-            id: 6,
-            name: "Smart Home Speaker",
-            clicks: 1789,
-            conversions: 67,
-            commission: "$7.80",
-            price: "$199.99",
-            status: "Active",
-            category: "Electronics"
-        },
-        {
-            id: 7,
-            name: "Blender Professional",
-            clicks: 324,
-            conversions: 18,
-            commission: "$12.50",
-            price: "$159.99",
-            status: "Active",
-            category: "Home"
-        },
-        {
-            id: 8,
-            name: "Running Shoes",
-            clicks: 756,
-            conversions: 42,
-            commission: "$9.99",
-            price: "$119.99",
-            status: "High",
-            category: "Fitness"
-        }
-    ];
-
-    // Get unique categories for filter
-    const categories = ['All', ...new Set(mockProducts.map(product => product.category))];
+    const { toast } = useToast();
 
     useEffect(() => {
-        // Simulate API call
-        setTimeout(() => {
-            setProducts(mockProducts);
-            setFilteredProducts(mockProducts);
-            setLoading(false);
-        }, 500);
+        const fetchProducts = async () => {
+            try {
+                const supabaseProducts = await getProducts();
+
+                // Transform Supabase products to match your mock data structure
+                const transformedProducts = supabaseProducts.map(product => ({
+                    id: product.id,
+                    name: product.name,
+                    clicks: 0, // Default value since this data isn't available
+                    conversions: 0, // Default value since this data isn't available
+                    commission: "8%", // Default value
+                    price: `Ksh ${product.price}`,
+                    status: product.inStock ? "Active" : "Inactive",
+                    category: product.category || "Uncategorized"
+                }));
+
+                setProducts(transformedProducts);
+                setFilteredProducts(transformedProducts);
+            } catch (error) {
+                console.error('Error fetching products:', error);
+                // Fallback to empty array if there's an error
+                setProducts([]);
+                setFilteredProducts([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
     }, []);
 
     useEffect(() => {
@@ -112,8 +50,50 @@ const Products = () => {
         }
     }, [selectedCategory, products]);
 
+    // Get unique categories for filter
+    const categories = ['All', ...new Set(products.map(product => product.category))];
+
     const calculateConversionRate = (clicks, conversions) => {
         return clicks > 0 ? ((conversions / clicks) * 100).toFixed(1) : '0.0';
+    };
+
+    const copyAffiliateLink = async (productId, productName) => {
+        try {
+            // Generate affiliate link - you'll need to implement your affiliate code logic
+            const affiliateCode = "AFF23M"; // You'll need to get this from user's profile
+            const baseUrl = window.location.origin;
+            const affiliateLink = `${baseUrl}/product/${productId}?affiliate=${affiliateCode}`;
+
+            // Check if clipboard API is available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(affiliateLink);
+                toast({
+                    title: "Link Copied",
+                    description: "Link for " + productName + " copied to clipboard",
+                    variant: "default",
+                });
+            } else {
+                // Fallback for browsers that don't support clipboard API
+                const textArea = document.createElement('textarea');
+                textArea.value = affiliateLink;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                toast({
+                    title: "Link Copied",
+                    description: "Link for " + productName + " copied to clipboard",
+                    variant: "default",
+                });
+            }
+        } catch (err) {
+            console.error('Failed to copy link:', err);
+            // Alternative fallback - show the link for manual copy
+            const affiliateCode = "AFF23M";
+            const baseUrl = window.location.origin;
+            const affiliateLink = `${baseUrl}/product/${productId}?affiliate=${affiliateCode}`;
+            alert(`Please copy this link manually:\n\n${affiliateLink}`);
+        }
     };
 
     if (loading) {
@@ -145,47 +125,56 @@ const Products = () => {
                 </div>
             </div>
 
-            <div className="products-grid-compact">
-                {filteredProducts.map(product => (
-                    <div key={product.id} className="product-card-compact">
-                        <div className="product-main-row">
-                            <div className="product-title">
-                                <h3>{product.name}</h3>
-                                <div className="product-meta">
-                                    <span className="category-tag">{product.category}</span>
-                                    <span className="product-price">{product.price}</span>
+            {filteredProducts.length === 0 ? (
+                <div className="no-products">
+                    No products available for affiliate program.
+                </div>
+            ) : (
+                <div className="products-grid-compact">
+                    {filteredProducts.map(product => (
+                        <div key={product.id} className="product-card-compact">
+                            <div className="product-main-row">
+                                <div className="product-title">
+                                    <h3>{product.name}</h3>
+                                    <div className="product-meta">
+                                        <span className="category-tag">{product.category}</span>
+                                        <span className="product-price">{product.price}</span>
+                                    </div>
+                                </div>
+                                <span className={`status-dot status-${product.status.toLowerCase()}`}></span>
+                            </div>
+
+                            <div className="Metrics-grid">
+                                <div className="metric-compact">
+                                    <span className="metric-value clicks">{product.clicks.toLocaleString()}</span>
+                                    <span className="metric-label">Clicks</span>
+                                </div>
+                                <div className="metric-compact">
+                                    <span className="metric-value conversions">{product.conversions}</span>
+                                    <span className="metric-label">Sales</span>
+                                </div>
+                                <div className="metric-compact">
+                                    <span className="metric-value conversions">
+                                        {calculateConversionRate(product.clicks, product.conversions)}%
+                                    </span>
+                                    <span className="metric-label">Rate</span>
+                                </div>
+                                <div className="metric-compact">
+                                    <span className="metric-value commission">{product.commission}</span>
+                                    <span className="metric-label">Commission</span>
                                 </div>
                             </div>
-                            <span className={`status-dot status-${product.status.toLowerCase()}`}></span>
-                        </div>
 
-                        <div className="Metrics-grid">
-                            <div className="metric-compact">
-                                <span className="metric-value clicks">{product.clicks.toLocaleString()}</span>
-                                <span className="metric-label">Clicks</span>
-                            </div>
-                            <div className="metric-compact">
-                                <span className="metric-value conversions">{product.conversions}</span>
-                                <span className="metric-label">Sales</span>
-                            </div>
-                            <div className="metric-compact">
-                                <span className="metric-value conversions">
-                                    {calculateConversionRate(product.clicks, product.conversions)}%
-                                </span>
-                                <span className="metric-label">Rate</span>
-                            </div>
-                            <div className="metric-compact">
-                                <span className="metric-value commission">{product.commission}</span>
-                                <span className="metric-label">Commission</span>
-                            </div>
+                            <button
+                                className="copy-link-btn"
+                                onClick={() => copyAffiliateLink(product.id, product.name)}
+                            >
+                                Copy Link
+                            </button>
                         </div>
-
-                        <button className="copy-link-btn">
-                            Copy Link
-                        </button>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

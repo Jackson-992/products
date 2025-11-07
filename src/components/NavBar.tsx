@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Menu, X, Heart, LogOut, Package, Phone, Zap, ChevronLeft } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, Heart, LogOut, Package, Phone, Zap, ChevronLeft, LayoutDashboard } from 'lucide-react';
 import { supabase } from '@/services/supabase';
+import { useAffiliateStatus } from '@/hooks/checkAffiliateStatus.ts'; // Adjust path to your hook
 import './navbar.css';
 
 const Navbar = () => {
@@ -11,6 +12,9 @@ const Navbar = () => {
     const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
     const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    // Use custom hook to check affiliate status
+    const { isAffiliate, loading: affiliateLoading } = useAffiliateStatus();
 
     const announcements = [
         { text: "🎉 Free Shipping on Orders Over KSh 5,000!", link: "/products" },
@@ -151,6 +155,10 @@ const Navbar = () => {
                                             <Link to="/cart" className="dropdown-item">Shopping Cart</Link>
                                             <Link to="/wishlist" className="dropdown-item">Wishlist</Link>
                                             <Link to="/orders" className="dropdown-item">Orders</Link>
+                                            {/* Show Dashboard link only if user is affiliate */}
+                                            {isAffiliate && (
+                                                <Link to="/seller-dashboard" className="dropdown-item">DashBoard</Link>
+                                            )}
                                             <Link to="/contact_us" className="dropdown-item">Contact Us</Link>
                                             <div className="dropdown-separator"></div>
                                             <button onClick={handleSignOut} className="dropdown-item logout-item">
@@ -268,6 +276,14 @@ const Navbar = () => {
                                         <Package className="menu-item-icon" />
                                         Orders
                                     </Link>
+
+                                    {/* Show Dashboard link only if user is affiliate */}
+                                    {isAffiliate && (
+                                        <Link to="/seller-dashboard" onClick={closeMobileMenu} className="menu-item">
+                                            <LayoutDashboard className="menu-item-icon" />
+                                            Dashboard
+                                        </Link>
+                                    )}
 
                                     <Link to="/products" onClick={closeMobileMenu} className="menu-item">
                                         <ChevronLeft className="menu-item-icon" />

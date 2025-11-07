@@ -1,12 +1,19 @@
 // components/ProtectedRoute.tsx
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { Navigate } from 'react-router-dom'
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    const { user, loading } = useAuth()
+    const { user, isLoading } = useAuth()  // Changed from 'loading' to 'isLoading'
 
-    if (loading) {
-        return <div>Loading...</div>
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        )
     }
 
     if (!user) {

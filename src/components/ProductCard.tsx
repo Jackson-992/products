@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Star, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/types/Product';
-import { supabase } from '@/services/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { addToWishList } from '@/services/WishlistSerices';
 import AddToCartForm from '@/pages/UserProfile/AddToCartForm';
@@ -17,55 +17,23 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     const navigate = useNavigate();
     const { toast } = useToast();
-    const [userProfile, setUserProfile] = useState(null);
+    const { user, userProfile, isLoading } = useAuth(); // Simple hook usage
     const [addingToWishlist, setAddingToWishlist] = useState(false);
     const [showAddToCartForm, setShowAddToCartForm] = useState(false);
 
     const mainImage = product.images.length > 0 ? product.images[0] : "/placeholder.png";
 
-    React.useEffect(() => {
-        const getUserProfile = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const { data: profile, error } = await supabase
-                        .from('user_profiles')
-                        .select('*')
-                        .eq('auth_id', session.user.id)
-                        .single();
-
-                    if (!error) {
-                        setUserProfile(profile);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching user profile:', error);
-            }
-        };
-
-        getUserProfile();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user) {
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', session.user.id)
-                    .single();
-
-                if (!error) {
-                    setUserProfile(profile);
-                }
-            } else {
-                setUserProfile(null);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
     const handleAddToCartClick = () => {
-        // Always show the form - no direct adding to cart
+        // Show loading if still checking auth
+        if (isLoading) {
+            toast({
+                title: "Please wait",
+                description: "Checking authentication...",
+                variant: "default",
+            });
+            return;
+        }
+
         if (!userProfile) {
             toast({
                 title: "Login Required",
@@ -93,11 +61,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
             return;
         }
 
-        // Show the form for ALL products
         setShowAddToCartForm(true);
     };
 
     const handleAddToWishlist = async () => {
+        if (isLoading) {
+            toast({
+                title: "Please wait",
+                description: "Checking authentication...",
+                variant: "default",
+            });
+            return;
+        }
+
         if (!userProfile) {
             toast({
                 title: "Login Required",
@@ -148,9 +124,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
 
     const handleCartFormSuccess = () => {
         setShowAddToCartForm(false);
-        if (onCartUpdate) {
-            onCartUpdate();
-        }
+        onCartUpdate?.();
     };
 
     const handleCloseForm = () => {
@@ -176,7 +150,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                     <button
                         className="wishlist-Btn"
                         onClick={handleAddToWishlist}
-                        disabled={addingToWishlist}
+                        disabled={addingToWishlist || isLoading}
                         aria-label="Add to wishlist"
                     >
                         {addingToWishlist ? (
@@ -222,18 +196,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
 
                     <button
                         className={`add-to-cart-btn ${!product.inStock ? 'disabled' : ''}`}
-                        disabled={!product.inStock}
+                        disabled={!product.inStock || isLoading}
                         onClick={handleAddToCartClick}
                     >
                         <ShoppingCart className="icon-sm" />
                         <span>
-                            {!product.inStock ? "Out of Stock" : "Add to Cart"}
+                            {isLoading ? "Checking..." : (!product.inStock ? "Out of Stock" : "Add to Cart")}
                         </span>
                     </button>
                 </div>
             </div>
 
-            {/* Add to Cart Form Modal - ALWAYS show when clicking Add to Cart */}
             {showAddToCartForm && (
                 <div className="add-to-cart-modal-overlay" onClick={handleCloseForm}>
                     <div className="add-to-cart-modal" onClick={(e) => e.stopPropagation()}>

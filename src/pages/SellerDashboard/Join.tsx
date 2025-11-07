@@ -1,17 +1,59 @@
 import "./Join.css";
-import { useState } from "react";
+import React, {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
+import { useAffiliateStatus } from "@/hooks/checkAffiliateStatus.ts";
+import { createPayment } from "@/services/PaymentServices";
+import { supabase } from '@/services/supabase';
+import { useToast } from '@/components/ui/use-toast';
+import {Button} from "@/components/ui/button.tsx";
 
 const Join = () => {
     const navigate = useNavigate();
     const [affiliateCode, setAffiliateCode] = useState("");
     const [hasCode, setHasCode] = useState(true);
     const [phoneNumber, setPhoneNumber] = useState("");
-    const [step, setStep] = useState(1); // 1: Code entry, 2: Phone number
+    const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [userProfile, setUserProfile] = useState<any>(null);
+    const { toast } = useToast();
+
+    const { loading: checkingStatus } = useAffiliateStatus(true);
+
+    useEffect(() => {
+        getUserProfile();
+    }, []);
+
+    const getUserProfile = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('auth_id', session.user.id)
+                    .single();
+
+                if (!error && profile) {
+                    setUserProfile(profile);
+                } else {
+                    console.error('Error fetching user profile:', error);
+                    setUserProfile(null);
+                }
+            }
+        } catch (error) {
+            console.error('Error getting user profile:', error);
+            setUserProfile(null);
+        }
+    };
+
+    const getCurrentUserId = (): number | null => {
+        return userProfile?.id || null;
+    };
 
     const handleCodeSubmit = (e) => {
         e.preventDefault();
+        setError("");
         if (hasCode && !affiliateCode.trim()) {
             alert("Please enter an affiliate code");
             return;
@@ -19,37 +61,94 @@ const Join = () => {
         setStep(2);
     };
 
+    const processMpesaPayment = async (phone, amount, paymentId) => {
+        console.log(`Processing M-Pesa payment: ${amount} KSH to ${phone} for payment ID: ${paymentId}`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return Promise.resolve();
+    };
+
     const handlePayment = async (e) => {
         e.preventDefault();
+        setError("");
+
         if (!phoneNumber.trim() || phoneNumber.length < 10) {
-            alert("Please enter a valid phone number");
+            setError("Please enter a valid phone number");
             return;
         }
 
         setIsLoading(true);
 
         try {
-            // Process payment
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const userId = await getCurrentUserId();
 
-            // After successful payment, redirect
-            navigate("/seller-dashboard")
+            const paymentResult = await createPayment({
+                user_id: userId,
+                amount: 500,
+                phone_number: phoneNumber,
+                referer_code: hasCode && affiliateCode.trim() ? affiliateCode.trim() : null,
+            });
+
+            if (!paymentResult.success) {
+                throw new Error(paymentResult.error);
+            }
+
+            await processMpesaPayment(phoneNumber, 500, paymentResult.payment.id);
+
+            navigate("/seller-dashboard");
 
         } catch (error) {
-            alert("Payment failed. Please try again.");
+            console.error('Payment error:', error);
+
+            // Check if it's the foreign key constraint violation for affiliate code
+            if (error.message?.includes('violates foreign key constraint') &&
+                error.message?.includes('registration_payment_referer_code_fkey')) {
+                toast({
+                    title: "Incorrect Affiliate code",
+                    description: "The affiliate code you entered does not exist. Please confirm with your Referer",
+                    variant: "destructive",
+                });
+            }
+            else {
+                toast({
+                    title: "Payment Failure",
+                    description: "Payment failed, please try again",
+                    variant: "default",
+                });
+            }
         } finally {
             setIsLoading(false);
         }
     };
+
     const goBack = () => {
+        setError("");
         setStep(1);
     };
+
+    if (checkingStatus) {
+        return (
+            <div className="join-container">
+                <div className="join-card">
+                    <div className="Loading-spinner">
+                        <div className="Spinner"></div>
+                        <p>Checking your status...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="join-container">
             <div className="join-card">
                 <h1>Become an Affiliate</h1>
                 <p className="join-subtitle">Join our affiliate program and start earning</p>
+
+                {error && (
+                    <div className="error-message">
+                        {error}
+                    </div>
+                )}
 
                 {step === 1 && (
                     <form onSubmit={handleCodeSubmit} className="join-form">
@@ -107,7 +206,7 @@ const Join = () => {
                                 type="tel"
                                 id="phoneNumber"
                                 value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 placeholder="Enter your phone number (e.g., 0712345678)"
                                 required
                             />
@@ -141,6 +240,7 @@ const Join = () => {
                                 type="button"
                                 onClick={goBack}
                                 className="back-btn"
+                                disabled={isLoading}
                             >
                                 Back
                             </button>
@@ -149,7 +249,14 @@ const Join = () => {
                                 disabled={isLoading}
                                 className="pay-btn"
                             >
-                                {isLoading ? "Processing..." : "Pay 500 KSH"}
+                                {isLoading ? (
+                                    <>
+                                        <div className="button-spinner"></div>
+                                        Processing...
+                                    </>
+                                ) : (
+                                    "Pay 500 KSH"
+                                )}
                             </button>
                         </div>
                     </form>

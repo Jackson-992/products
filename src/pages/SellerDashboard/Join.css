@@ -1,40 +1,41 @@
+/* Join.css */
 .join-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: whitesmoke;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 20px;
 }
 
 .join-card {
     background: white;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     padding: 40px;
     width: 100%;
-    max-width: 420px;
+    max-width: 480px;
 }
 
 .join-card h1 {
-    text-align: center;
     color: #333;
+    text-align: center;
     margin-bottom: 8px;
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 700;
 }
 
 .join-subtitle {
-    text-align: center;
     color: #666;
-    margin-bottom: 30px;
+    text-align: center;
+    margin-bottom: 32px;
     font-size: 16px;
 }
 
 .join-form {
     display: flex;
     flex-direction: column;
-    /*gap: 20px;*/
+    gap: 24px;
 }
 
 .form-group {
@@ -44,17 +45,17 @@
 }
 
 .form-group label {
-    font-weight: 500;
+    font-weight: 600;
     color: #333;
-    font-size: 0.9rem;
+    font-size: 14px;
 }
 
 .form-group input {
     padding: 12px 16px;
     border: 2px solid #e1e5e9;
     border-radius: 8px;
-    font-size: 0.9rem;
-    transition: border-color 0.3s ease;
+    font-size: 16px;
+    transition: border-color 0.2s;
 }
 
 .form-group input:focus {
@@ -65,6 +66,7 @@
 .form-group input:disabled {
     background-color: #f8f9fa;
     color: #6c757d;
+    cursor: not-allowed;
 }
 
 .input-hint {
@@ -74,76 +76,89 @@
 }
 
 .code-option {
-    margin: 10px 0;
+    margin: -8px 0;
 }
 
 .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     font-size: 14px;
     color: #333;
 }
 
 .checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
     width: 18px;
     height: 18px;
-    cursor: pointer;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
 }
 
 .continue-btn, .pay-btn {
-    background: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    padding: 14px 20px;
+    padding: 14px 24px;
     border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .continue-btn:hover, .pay-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .continue-btn:active, .pay-btn:active:not(:disabled) {
     transform: translateY(0);
 }
 
-.pay-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
 .no-code-info {
     text-align: center;
     color: #6c757d;
     font-size: 14px;
-    margin-top: 10px;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-radius: 6px;
+    margin-top: -8px;
 }
 
 .step-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 30px;
+    gap: 8px;
+    margin-bottom: 24px;
 }
 
 .step {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background-color: #e1e5e9;
-    color: #6c757d;
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: #e9ecef;
+    color: #6c757d;
     font-weight: 600;
     font-size: 14px;
 }
@@ -154,21 +169,21 @@
 }
 
 .step-line {
-    width: 60px;
+    flex: 1;
     height: 2px;
-    background-color: #e1e5e9;
-    margin: 0 10px;
+    background-color: #e9ecef;
+    max-width: 60px;
 }
 
 .payment-summary {
-    border: 2px solid #e1e5e9;
+    background: #f8f9fa;
     border-radius: 8px;
     padding: 20px;
-    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
 }
 
 .payment-summary h3 {
-    margin: 0 0 15px 0;
+    margin: 0 0 16px 0;
     color: #333;
     font-size: 16px;
 }
@@ -176,7 +191,7 @@
 .payment-details {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .payment-row {
@@ -189,41 +204,107 @@
 .payment-total {
     display: flex;
     justify-content: space-between;
-    font-weight: 600;
+    font-weight: 700;
     color: #333;
     font-size: 16px;
-    padding-top: 10px;
+    padding-top: 8px;
     border-top: 1px solid #dee2e6;
+    margin-top: 4px;
 }
 
 .form-actions {
     display: flex;
-    gap: 15px;
+    gap: 12px;
 }
 
 .back-btn {
     flex: 1;
-    background-color: #6c757d;
+    background: #6c757d;
     color: white;
     border: none;
-    padding: 14px 20px;
+    padding: 14px 24px;
     border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.2s;
 }
 
-.back-btn:hover {
-    background-color: #5a6268;
+.back-btn:hover:not(:disabled) {
+    background: #5a6268;
 }
 
+.back-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pay-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.Loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 0;
+}
+
+.Spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e9ecef;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.button-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+.payment-processing {
+    text-align: center;
+    padding: 16px;
+    background: #e7f3ff;
+    border-radius: 8px;
+    border: 1px solid #b3d9ff;
+    margin-top: -8px;
+}
+
+.payment-processing p {
+    margin: 0;
+    color: #0066cc;
+    font-size: 14px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
 @media (max-width: 480px) {
     .join-card {
-        padding: 30px 20px;
+        padding: 24px;
+        margin: 20px;
     }
 
     .form-actions {
         flex-direction: column;
+    }
+
+    .back-btn, .pay-btn {
+        flex: none;
     }
 }

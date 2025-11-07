@@ -231,10 +231,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                         const productDetail = productDetails[item.productId];
 
                         // Calculate new price: base price + variation adjustment
-                        const basePrice = productDetail?.originalprice > productDetail?.price
-                            ? productDetail.originalprice
-                            : productDetail?.price || item.originalPrice;
-
+                        const basePrice = productDetail?.price || item.price;
                         const finalPrice = basePrice + (selectedVariation.price_adjustment || 0);
 
                         console.log('Price calculation:', {
@@ -405,9 +402,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         const productDetail = productDetails[productId];
         if (!productDetail) return variation.price_adjustment || 0;
 
-        const basePrice = productDetail.originalprice > productDetail.price
-            ? productDetail.originalprice
-            : productDetail.price;
+        const basePrice = productDetail?.price;
 
         return basePrice + (variation.price_adjustment || 0);
     };

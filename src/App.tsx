@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext"; // Import the AuthProvider
 import Navbar from "./components/NavBar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -17,7 +18,7 @@ import MasterDashboard from "@/components/admin/MasterDashBoard.tsx";
 import AuthCallback from "@/pages/AuthCallBack.tsx";
 import ResetPassword from "@/pages/ResetPassword.tsx";
 import ProtectedRoute from "@/components/ProtectedRoute.tsx";
-import WishList  from "@/pages/UserProfile/WishList.tsx";
+import WishList from "@/pages/UserProfile/WishList.tsx";
 import Orders from "@/pages/UserProfile/Orders.tsx";
 import ContactUs from "@/pages/UserProfile/ContactUs.tsx"
 import Join from "@/pages/SellerDashboard/Join.tsx"
@@ -47,55 +48,59 @@ const App = () => (
         <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
-                <Routes>
-                    {/* Routes with main layout (navbar + footer) */}
-                    <Route element={<MainLayout />}>
-                        <Route path="/" element={<Home product={undefined} />} />
-                        <Route path="/products" element={<ProductList />} />
-                        <Route path="/product/:id" element={<ProductDetails />} />
-                        <Route path="/seller-dashboard" element={<SellerDashboard />} />
-                        <Route path="/cart" element={
-                            <ProtectedRoute>
-                                <CartPage />
-                            </ProtectedRoute>} />
-                        <Route path="/wishlist" element={
-                            <ProtectedRoute>
-                                <WishList />
-                            </ProtectedRoute>} />
-                        <Route path="/orders" element={
-                            <ProtectedRoute>
-                                <Orders />
-                            </ProtectedRoute>} />
-                        <Route path="/contact_us" element={
-                            <ProtectedRoute>
-                                <ContactUs/>
-                            </ProtectedRoute>} />
-                        <Route path="/join" element={
-                            <ProtectedRoute>
-                                <Join />
-                            </ProtectedRoute>} />
-                        <Route path="/auth/callback" element={<AuthCallback />} />
-                    </Route>
+            {/* Wrap everything with AuthProvider */}
+            <AuthProvider>
+                <BrowserRouter>
+                    <Routes>
+                        {/* Routes with main layout (navbar + footer) */}
+                        <Route element={<MainLayout />}>
+                            <Route path="/" element={<Home product={undefined} />} />
+                            <Route path="/products" element={<ProductList />} />
+                            <Route path="/product/:id" element={<ProductDetails />} />
+                            <Route path="/seller-dashboard" element={<SellerDashboard />} />
+                            <Route path="/cart" element={
+                                <ProtectedRoute>
+                                    <CartPage />
+                                </ProtectedRoute>} />
+                            <Route path="/wishlist" element={
+                                <ProtectedRoute>
+                                    <WishList />
+                                </ProtectedRoute>} />
+                            <Route path="/orders" element={
+                                <ProtectedRoute>
+                                    <Orders />
+                                </ProtectedRoute>} />
+                            <Route path="/contact_us" element={
+                                <ProtectedRoute>
+                                    <ContactUs/>
+                                </ProtectedRoute>} />
+                            <Route path="/join" element={
+                                <ProtectedRoute>
+                                    <Join />
+                                </ProtectedRoute>} />
+                            <Route path="/auth/callback" element={<AuthCallback />} />
+                        </Route>
 
-                    {/* Routes with minimal layout (no navbar/footer) */}
-                    <Route element={<MinimalLayout />}>
-                        <Route path="/MD" element={
-                            <ProtectedRoute>
-                                <MasterDashboard/>
+                        {/* Routes with minimal layout (no navbar/footer) */}
+                        <Route element={<MinimalLayout />}>
+                            <Route path="/MD" element={
+                                <ProtectedRoute>
+                                    <MasterDashboard/>
                                 </ProtectedRoute>
-                        } />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<SignUp />} />
-                        <Route path="/reset-password" element={<ResetPassword />} />
-                    </Route>
+                            } />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<SignUp />} />
+                            <Route path="/reset-password" element={<ResetPassword />} />
+                        </Route>
 
-                    {/* Catch-all route */}
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
-            </BrowserRouter>
+                        {/* Catch-all route */}
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </BrowserRouter>
+            </AuthProvider>
         </TooltipProvider>
     </QueryClientProvider>
+
 );
 
 export default App;
