@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Product } from '@/types/Product.ts';
-import { createProduct, uploadProductImage, ProductVariation } from '@/services/adminProductService.ts';
+import { createProduct, uploadProductImage, ProductVariation } from '@/services/AdminServices/adminProductService.ts';
 import './AddProductDialog.css';
 
 interface AddProductDialogProps {

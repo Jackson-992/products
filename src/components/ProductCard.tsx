@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Product } from '@/types/Product';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { addToWishList } from '@/services/WishlistSerices';
+import { addToWishList } from '@/services/CommonServices/WishlistSerices.ts';
 import AddToCartForm from '@/pages/UserProfile/AddToCartForm';
 import './ProductCard.css';
 

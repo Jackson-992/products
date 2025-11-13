@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from '../supabase.ts';
 
 export const createOrder = async (orderData) => {
     try {
@@ -40,7 +40,7 @@ export const createOrder = async (orderData) => {
             quantity: item.quantity,
             price: item.price,
             product_name: item.name,
-            affiliate_id: item.affiliate_id || null,
+            affiliate_code: item.affiliate_id || null,
             commission_earned: item.commission_earned || 0
         }));
 

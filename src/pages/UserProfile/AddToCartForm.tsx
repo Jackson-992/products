@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ShoppingCart, Check } from 'lucide-react';
-import { getProductVariations, ProductVariation } from '@/services/adminProductService';
-import { addToCart } from '@/services/CartServices';
+import { getProductVariations, ProductVariation } from '@/services/AdminServices/adminProductService.ts';
+import { addToCart } from '@/services/CommonServices/CartServices.ts';
 import { supabase } from '@/services/supabase'; // Import supabase
 import './AddToCartForm.css';
 

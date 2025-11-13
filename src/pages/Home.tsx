@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductCard from "@/components/ProductCard";
 import Loader from "@/components/Loader";
-import { getProducts } from "@/services/ProductService";
+import { getProducts } from "@/services/CommonServices/ProductService.ts";
 import { Product } from "@/types/Product"; // keep same interface
 
 interface ProductCardProps {

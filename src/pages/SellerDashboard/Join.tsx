@@ -2,7 +2,7 @@ import "./Join.css";
 import React, {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
 import { useAffiliateStatus } from "@/hooks/checkAffiliateStatus.ts";
-import { createPayment } from "@/services/PaymentServices";
+import { createPayment } from "@/services/CommonServices/PaymentServices.ts";
 import { supabase } from '@/services/supabase';
 import { useToast } from '@/components/ui/use-toast';
 import {Button} from "@/components/ui/button.tsx";
@@ -14,6 +14,7 @@ const Join = () => {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [paymentInitiated, setPaymentInitiated] = useState(false);
     const [error, setError] = useState("");
     const [userProfile, setUserProfile] = useState<any>(null);
     const { toast } = useToast();
@@ -51,6 +52,21 @@ const Join = () => {
         return userProfile?.id || null;
     };
 
+    const validateAffiliateCode = async (code: string): Promise<boolean> => {
+        try {
+            const { data, error } = await supabase
+                .from('affiliate_profiles')
+                .select('affiliate_code')
+                .eq('affiliate_code', code)
+                .single();
+
+            return !error && data !== null;
+        } catch (error) {
+            console.error('Error validating affiliate code:', error);
+            return false;
+        }
+    };
+
     const handleCodeSubmit = (e) => {
         e.preventDefault();
         setError("");
@@ -76,6 +92,19 @@ const Join = () => {
             return;
         }
 
+        // Validate affiliate code before creating payment
+        if (hasCode && affiliateCode.trim()) {
+            const isValidCode = await validateAffiliateCode(affiliateCode.trim());
+            if (!isValidCode) {
+                toast({
+                    title: "Incorrect Affiliate code",
+                    description: "The affiliate code you entered does not exist. Please confirm with your Referer",
+                    variant: "destructive",
+                });
+                return;
+            }
+        }
+
         setIsLoading(true);
 
         try {
@@ -94,27 +123,23 @@ const Join = () => {
 
             await processMpesaPayment(phoneNumber, 500, paymentResult.payment.id);
 
-            navigate("/seller-dashboard");
+            // Set payment as initiated and show refresh message
+            setPaymentInitiated(true);
+
+            toast({
+                title: "Payment Initiated",
+                description: "Check your phone to complete the M-Pesa payment",
+                variant: "default",
+            });
 
         } catch (error) {
             console.error('Payment error:', error);
 
-            // Check if it's the foreign key constraint violation for affiliate code
-            if (error.message?.includes('violates foreign key constraint') &&
-                error.message?.includes('registration_payment_referer_code_fkey')) {
-                toast({
-                    title: "Incorrect Affiliate code",
-                    description: "The affiliate code you entered does not exist. Please confirm with your Referer",
-                    variant: "destructive",
-                });
-            }
-            else {
-                toast({
-                    title: "Payment Failure",
-                    description: "Payment failed, please try again",
-                    variant: "default",
-                });
-            }
+            toast({
+                title: "Payment Failure",
+                description: "Payment failed, please try again",
+                variant: "default",
+            });
         } finally {
             setIsLoading(false);
         }
@@ -123,6 +148,10 @@ const Join = () => {
     const goBack = () => {
         setError("");
         setStep(1);
+    };
+
+    const handleRefresh = () => {
+        window.location.reload();
     };
 
     if (checkingStatus) {
@@ -150,7 +179,21 @@ const Join = () => {
                     </div>
                 )}
 
-                {step === 1 && (
+                {paymentInitiated && (
+                    <div className="refresh-message">
+                        <div className="message-icon">💳</div>
+                        <h3>Payment Initiated Successfully</h3>
+                        <p>After completing payment, refresh page to access your dashboard</p>
+                        <Button
+                            onClick={handleRefresh}
+                            className="refresh-btn"
+                        >
+                            Refresh Page
+                        </Button>
+                    </div>
+                )}
+
+                {!paymentInitiated && step === 1 && (
                     <form onSubmit={handleCodeSubmit} className="join-form">
                         <div className="form-group">
                             <label htmlFor="affiliateCode">
@@ -190,7 +233,7 @@ const Join = () => {
                     </form>
                 )}
 
-                {step === 2 && (
+                {!paymentInitiated && step === 2 && (
                     <form onSubmit={handlePayment} className="join-form">
                         <div className="step-indicator">
                             <span className="step active">1</span>

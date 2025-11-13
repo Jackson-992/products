@@ -1,4 +1,4 @@
-import {ProductVariation} from "@/services/ProductService.ts";
+import {ProductVariation} from "@/services/CommonServices/ProductService.ts";
 
 export interface Product {
     id: number;

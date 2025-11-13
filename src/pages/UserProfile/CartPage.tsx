@@ -6,10 +6,10 @@ import {
     removeFromCart,
     clearCart,
     updateCartQuantity
-} from '@/services/CartServices';
+} from '@/services/CommonServices/CartServices.ts';
 import { supabase } from '@/services/supabase';
 import './cart.css';
-import { addToWishList } from "@/services/WishlistSerices";
+import { addToWishList } from "@/services/CommonServices/WishlistSerices.ts";
 import { useToast } from '@/components/ui/use-toast';
 import PurchaseForm from "@/pages/PurchaseForm";
 import { Button } from '@/components/ui/button';

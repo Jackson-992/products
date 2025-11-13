@@ -5,7 +5,7 @@ import {
     fetchWishListItems,
     removeFromWishList,
     clearWishList
-} from '@/services/WishlistSerices';
+} from '@/services/CommonServices/WishlistSerices.ts';
 import './WishList.css';
 import { supabase } from "@/services/supabase.ts";
 import { useToast } from '@/components/ui/use-toast'; // Import your toast hook

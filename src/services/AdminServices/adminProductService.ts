@@ -1,5 +1,5 @@
-import { supabase } from "./supabase";
-import { Product } from "../types/Product";
+import { supabase } from "../supabase.ts";
+import { Product } from "../../types/Product.ts";
 
 // Variation interface
 export interface ProductVariation {

@@ -9,8 +9,8 @@ import OrderTable from './Orders/OrderTable.tsx';
 import RefundTable from './Refunds/RefundTable.tsx';
 import AffilliatesTable from './Affilliates/AffilliatesTable.tsx';
 import Payment from './Payment/Payment.tsx'
-import {getProducts} from '@/services/ProductService.ts';
-import { deleteProduct } from '@/services/adminProductService';
+import {getProducts} from '@/services/CommonServices/ProductService.ts';
+import { deleteProduct } from '@/services/AdminServices/adminProductService.ts';
 import './MasterDashboard.css';
 
 const MasterDashboard = () => {

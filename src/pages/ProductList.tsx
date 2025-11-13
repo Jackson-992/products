@@ -6,7 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import Loader from "@/components/Loader";
 import "./product-list.css";
 import { Product } from "@/types/Product";
-import { getProducts } from "@/services/ProductService";
+import { getProducts } from "@/services/CommonServices/ProductService.ts";
 
 const ProductList = () => {
     const [searchParams, setSearchParams] = useSearchParams();

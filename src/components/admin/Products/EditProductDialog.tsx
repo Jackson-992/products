@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { Product } from '@/types/Product.ts';
-import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails, getProductVariations, ProductVariation } from '@/services/adminProductService.ts';
+import { updateProduct, uploadProductImage, deleteProductImage, getProductDetails, getProductVariations, ProductVariation } from '@/services/AdminServices/adminProductService.ts';
 import './EditProductDialog.css';
 
 interface EditProductDialogProps {

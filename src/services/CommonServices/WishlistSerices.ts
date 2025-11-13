@@ -1,5 +1,5 @@
 // wishlistService.js
-import { supabase } from './supabase';
+import { supabase } from '../supabase.ts';
 
 // Add to wishlist
 export const addToWishList = async (userId, productId) => {

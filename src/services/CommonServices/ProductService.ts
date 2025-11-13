@@ -1,6 +1,6 @@
-import { supabase } from "./supabase";
-import { Product } from "../types/Product";
-import { Review } from "../types/Product";
+import { supabase } from "../supabase.ts";
+import { Product } from "../../types/Product.ts";
+import { Review } from "../../types/Product.ts";
 
 // Enhanced Product type for details page
 export interface ProductDetails extends Product {
@@ -57,7 +57,7 @@ export const getProducts = async (): Promise<Product[]> => {
         const totalStock = variations.reduce((sum: number, variation: any) =>
             sum + (variation.quantity || 0), 0);
 
-        console.log("Fetched product:", p);
+        //console.log("Fetched product:", p);
 
         return {
             id: p.id,

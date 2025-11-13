@@ -58,6 +58,158 @@
     color: #666;
     transition: all 0.3s ease;
 }
+/* SellerDashboard.css */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-state p {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Compact Affiliate Code Styles */
+.affiliate-code-compact {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+    z-index: 1000;
+    max-width: 280px;
+    backdrop-filter: blur(10px);
+}
+
+.code-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+}
+
+.code-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.affiliate-code {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #212529;
+    background: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.copy-btn-compact {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.copy-btn-compact:hover:not(:disabled) {
+    background: #5a6268;
+    transform: scale(1.05);
+}
+
+.copy-btn-compact:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.copy-btn-compact:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.copy-btn-compact.copied {
+    background: #28a745;
+}
+
+/* Even more compact inline version alternative */
+.affiliate-code-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+.affiliate-code-inline .code {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 600;
+    color: #212529;
+}
+
+.affiliate-code-inline .copy-btn {
+    background: none;
+    border: 1px solid #6c757d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.affiliate-code-inline .copy-btn:hover {
+    background: #6c757d;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .affiliate-code-compact {
+        position: static;
+        max-width: none;
+        margin: 1rem;
+        bottom: auto;
+        right: auto;
+    }
+}
 
 @media (max-width: 600px) {
     .Tab-button {

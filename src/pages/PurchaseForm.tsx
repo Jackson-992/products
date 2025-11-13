@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2 } from 'lucide-react';
-import { createOrder, checkVariationAvailability } from '@/services/OrderServices';
-import { getProductVariations, getProductDetails } from '@/services/CheckOut.ts';
+import { createOrder, checkVariationAvailability } from '@/services/CommonServices/OrderServices.ts';
+import { getProductVariations, getProductDetails } from '@/services/CommonServices/CheckOut.ts';
 import './PurchaseForm.css';
 
 interface ProductVariation {
@@ -38,6 +38,7 @@ interface PurchaseFormProps {
     cartItems: CartItem[];
     onClose: () => void;
     userId: string;
+    affiliateCode?: string; // Add affiliate code prop
 }
 
 interface ProductDetails {
@@ -49,7 +50,15 @@ interface ProductDetails {
     category: string;
 }
 
-const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId }) => {
+// Function to get affiliate code from URL
+const getAffiliateCodeFromURL = (): string | null => {
+    if (typeof window === 'undefined') return null;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('affiliate');
+};
+
+const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId, affiliateCode: propAffiliateCode }) => {
     const { toast } = useToast();
     const [phoneNumber, setPhoneNumber] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -58,6 +67,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
     const [productDetails, setProductDetails] = useState<{[key: number]: ProductDetails}>({});
     const [loading, setLoading] = useState<boolean>(true);
     const variationsLoadedRef = useRef<boolean>(false);
+
+    // Get affiliate code from URL or props
+    const [affiliateCode] = useState<string | null>(() => {
+        return propAffiliateCode || getAffiliateCodeFromURL();
+    });
 
     // Fetch product details and variations directly from backend
     useEffect(() => {
@@ -192,8 +206,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         return selectedItems.reduce((total, item) => total + item.quantity, 0);
     };
 
-    const shippingCost = calculateSubtotal() > 5000 ? 0 : 300;
-    const totalAmount = calculateSubtotal() + shippingCost;
+    const totalAmount = calculateSubtotal();
 
     const handleItemQuantityChange = (itemId: string, newQuantity: number) => {
         if (newQuantity < 1) return;
@@ -231,7 +244,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                         const productDetail = productDetails[item.productId];
 
                         // Calculate new price: base price + variation adjustment
-                        const basePrice = productDetail?.price || item.price;
+                        const basePrice = productDetail?.price || item.originalPrice;
                         const finalPrice = basePrice + (selectedVariation.price_adjustment || 0);
 
                         console.log('Price calculation:', {
@@ -248,7 +261,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                             size: selectedVariation.size,
                             sku: selectedVariation.sku,
                             variationStock: selectedVariation.quantity,
-                            price: finalPrice,
+                            price: finalPrice, // Update the price with the new variation price
+                            originalPrice: basePrice, // Also update the base price
                             quantity: Math.min(item.quantity, selectedVariation.quantity)
                         };
                     }
@@ -324,7 +338,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                 return;
             }
 
-            // Prepare order items with variation data
+            // Prepare order items with variation data and affiliate info
             const orderItems = selectedItems.map(item => ({
                 productId: item.productId,
                 variationId: item.variationId!,
@@ -332,27 +346,33 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                 size: item.size!,
                 sku: item.sku!,
                 name: item.name,
-                price: item.price,
+                price: item.price, // This now contains the correct current price
                 quantity: item.quantity,
                 variationStock: item.variationStock!,
-                affiliate_id: null,
-                commission_earned: 0
+                affiliate_id: affiliateCode, // Include affiliate code
+                commission_earned: 0 // You might want to calculate this based on your commission structure
             }));
 
             // Create order in database
             const orderResult = await createOrder({
                 user_id: userId,
                 phone_number: phoneNumber,
-                items: orderItems
+                items: orderItems,
+                affiliate_code: affiliateCode // Include affiliate code at order level too
             });
 
             if (!orderResult.success) {
                 throw new Error(orderResult.error);
             }
 
+            // Show affiliate message if applicable
+            const successMessage = affiliateCode
+                ? `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed through affiliate ${affiliateCode}. We'll contact you on ${phoneNumber}.`
+                : `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed. We'll contact you on ${phoneNumber}.`;
+
             toast({
                 title: "Order Placed Successfully!",
-                description: `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed. We'll contact you on ${phoneNumber}.`,
+                description: successMessage,
                 variant: "default",
             });
 
@@ -403,8 +423,12 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
         if (!productDetail) return variation.price_adjustment || 0;
 
         const basePrice = productDetail?.price;
-
         return basePrice + (variation.price_adjustment || 0);
+    };
+
+    // Get current item total for display
+    const getItemTotal = (item: CartItem) => {
+        return item.price * item.quantity;
     };
 
     if (loading) {
@@ -523,7 +547,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                                 </div>
                                             </div>
                                             <div className="item-total">
-                                                Item Total: <strong>Ksh {(item.price * item.quantity).toLocaleString()}</strong>
+                                                Item Total: <strong>Ksh {getItemTotal(item).toLocaleString()}</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -536,21 +560,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId 
                                 <span className="order-label">Subtotal ({calculateTotalItems()} items):</span>
                                 <span className="order-value">Ksh {calculateSubtotal().toLocaleString()}</span>
                             </div>
-                            <div className="order-row">
-                                <span className="order-label">Shipping:</span>
-                                <span className="order-value">
-                                    {shippingCost === 0 ? (
-                                        <span className="free-shipping">FREE</span>
-                                    ) : (
-                                        `Ksh ${shippingCost.toLocaleString()}`
-                                    )}
-                                </span>
-                            </div>
-                            {shippingCost > 0 && calculateSubtotal() < 5000 && (
-                                <div className="shipping-note">
-                                    Add Ksh {(5000 - calculateSubtotal()).toLocaleString()} more for FREE shipping!
-                                </div>
-                            )}
+
                             <div className="order-row total">
                                 <span className="order-label">Total Amount:</span>
                                 <span className="order-value">Ksh {totalAmount.toLocaleString()}</span>

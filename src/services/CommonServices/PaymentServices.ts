@@ -1,5 +1,5 @@
 // paymentService.js
-import { supabase } from './supabase';
+import { supabase } from '../supabase.ts';
 
 // Create payment record
 export const createPayment = async (paymentData) => {

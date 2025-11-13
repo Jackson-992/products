@@ -116,7 +116,7 @@
 
 .Metrics-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -138,11 +138,6 @@
 }
 
 .metric-value.commission {
-    color: #4299e1;
-    font-size: 1rem;
-}
-
-.metric-value.clicks {
     color: #4299e1;
     font-size: 1rem;
 }
