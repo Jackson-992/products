@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Users, Copy, TrendingUp, UserPlus, Loader2 } from 'lucide-react';
-import { getFormattedReferrals, getReferralStats, getAffiliateEarnings } from '@/services/SellerServices/ReferalsCommission.ts';
+import {
+    getFormattedReferrals,
+    getReferralStats,
+    getAffiliateEarnings
+} from '@/services/SellerServices/ReferalsCommission.ts';
+import {
+    getFormattedSales,
+    getSalesStats
+} from '@/services/SellerServices/SalesCommission.ts';
 import './Earnings.css';
 import { useAffiliateCode } from '@/hooks/checkAffiliateCode.ts';
 
@@ -10,31 +18,16 @@ const Earnings = () => {
     const [error, setError] = useState(null);
     const { affiliateCode } = useAffiliateCode();
 
-    // State for referral data
-    const [referralsData, setReferralsData] = useState([]);
-    const [referralStats, setReferralStats] = useState({
-        totalReferrals: 0,
-        totalEarnings: 0,
-        pendingEarnings: 0
-    });
-    const [affiliateEarnings, setAffiliateEarnings] = useState({
-        balance: 0,
-        totalEarnings: 0,
-        referralsEarnings: 0,
-        commissionEarnings: 0
-    });
+    // State for all data - initialize as null to distinguish between "loading" and "no data"
+    const [referralsData, setReferralsData] = useState(null);
+    const [salesData, setSalesData] = useState(null);
+    const [referralStats, setReferralStats] = useState(null);
+    const [salesStats, setSalesStats] = useState(null);
+    const [affiliateEarnings, setAffiliateEarnings] = useState(null);
 
-    // Mock data for sales (you'll replace this later)
-    const salesData = [
-        { id: 1, product: "Wireless Earbuds Pro", date: "2024-01-15", amount: "Ksh 350", status: "Completed" },
-        { id: 2, product: "Fitness Tracker Watch", date: "2024-01-14", amount: "Ksh 100", status: "Completed" },
-        { id: 4, product: "Smart Home Speaker", date: "2024-01-13", amount: "Ksh 130", status: "Completed" },
-        { id: 5, product: "Yoga Mat Premium", date: "2024-01-12", amount: "Ksh 210", status: "Completed" }
-    ];
-
-    // Fetch referral data on component mount
+    // Fetch all data on component mount
     useEffect(() => {
-        const fetchReferralData = async () => {
+        const fetchAllData = async () => {
             if (!affiliateCode) {
                 setError('Affiliate code is required');
                 setLoading(false);
@@ -45,48 +38,75 @@ const Earnings = () => {
             setError(null);
 
             try {
-                // Fetch referrals
-                const { data: referrals, error: referralsError } = await getFormattedReferrals(affiliateCode);
-                if (referralsError) throw referralsError;
+                // Fetch all data in parallel for better performance
+                const [
+                    referralsResponse,
+                    referralStatsResponse,
+                    earningsResponse,
+                    salesResponse,
+                    salesStatsResponse
+                ] = await Promise.all([
+                    getFormattedReferrals(affiliateCode),
+                    getReferralStats(affiliateCode),
+                    getAffiliateEarnings(affiliateCode),
+                    getFormattedSales(affiliateCode),
+                    getSalesStats(affiliateCode)
+                ]);
 
-                // Fetch stats
-                const { data: stats, error: statsError } = await getReferralStats(affiliateCode);
-                if (statsError) throw statsError;
+                // Handle referrals data
+                if (referralsResponse.error) throw referralsResponse.error;
+                setReferralsData(referralsResponse.data || []);
 
-                // Fetch affiliate earnings
-                const { data: earnings, error: earningsError } = await getAffiliateEarnings(affiliateCode);
-                if (earningsError) throw earningsError;
-
-                setReferralsData(referrals || []);
-                setReferralStats(stats || { totalReferrals: 0, totalEarnings: 0, pendingEarnings: 0 });
-                setAffiliateEarnings({
-                    balance: parseFloat(earnings?.balance || 0),
-                    totalEarnings: parseFloat(earnings?.total_earnings || 0),
-                    referralsEarnings: parseFloat(earnings?.referals_earnings || 0),
-                    commissionEarnings: parseFloat(earnings?.commission_earnings || 0)
+                // Handle referral stats
+                if (referralStatsResponse.error) throw referralStatsResponse.error;
+                setReferralStats(referralStatsResponse.data || {
+                    totalReferrals: 0,
+                    totalEarnings: 0,
+                    pendingEarnings: 0
                 });
+
+                // Handle affiliate earnings
+                if (earningsResponse.error) throw earningsResponse.error;
+                setAffiliateEarnings({
+                    balance: parseFloat(earningsResponse.data?.balance || 0),
+                    totalEarnings: parseFloat(earningsResponse.data?.total_earnings || 0),
+                    referralsEarnings: parseFloat(earningsResponse.data?.referals_earnings || 0),
+                    commissionEarnings: parseFloat(earningsResponse.data?.commission_earnings || 0)
+                });
+
+                // Handle sales data
+                if (salesResponse.error) throw salesResponse.error;
+                setSalesData(salesResponse.data || []);
+
+                // Handle sales stats
+                if (salesStatsResponse.error) throw salesStatsResponse.error;
+                setSalesStats(salesStatsResponse.data || {
+                    totalSales: 0,
+                    completedSales: 0,
+                    pendingSales: 0,
+                    totalCommissionEarnings: 0,
+                    pendingCommissionEarnings: 0,
+                    totalSalesValue: 0
+                });
+
             } catch (err) {
-                console.error('Error fetching referral data:', err);
-                setError('Failed to load referral data');
+                console.error('Error fetching earnings data:', err);
+                setError('Failed to load earnings data');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchReferralData();
+        fetchAllData();
     }, [affiliateCode]);
-
-    // Calculate totals for sales (mock data)
-    const totalSales = salesData
-        .filter(sale => sale.status === 'Completed')
-        .reduce((sum, sale) => sum + parseFloat(sale.amount.replace('Ksh', '')), 0);
 
     const copyReferralLink = () => {
         navigator.clipboard.writeText(`https://youraffiliate.com/ref/${affiliateCode}`);
         // You can add a toast notification here
     };
 
-    if (loading) {
+    // Show loading state until all data is loaded
+    if (loading || !affiliateEarnings || !referralStats || !salesStats) {
         return (
             <div className="earnings-container">
                 <div className="loading-state">
@@ -97,12 +117,12 @@ const Earnings = () => {
         );
     }
 
+    // Show error state if there's an error
     if (error) {
         return (
             <div className="earnings-container">
                 <div className="error-state">
-                    <p className="error-message">{error}</p>
-                    <button onClick={() => window.location.reload()}>Retry</button>
+                    <p>Error: {error}</p>
                 </div>
             </div>
         );
@@ -169,29 +189,49 @@ const Earnings = () => {
                 <div className="tab-content-compact">
                     {activeTab === 'sales' && (
                         <div className="sales-tab-compact">
-                            <div className="table-container">
-                                <div className="table-header-compact">
-                                    <div className="table-col">Product</div>
-                                    <div className="table-col">Date</div>
-                                    <div className="table-col text-right">Amount</div>
-                                    <div className="table-col text-right">Status</div>
+                            <div className="referral-stats-compact">
+                                <div className="stat-item-compact">
+                                    <span className="stat-value">{salesStats.totalSales}</span>
+                                    <span className="stat-label">Total</span>
                                 </div>
 
-                                <div className="table-body-compact">
-                                    {salesData.map(sale => (
-                                        <div key={sale.id} className="table-row-compact">
-                                            <div className="table-col Product-name">{sale.product}</div>
-                                            <div className="table-col">{sale.date}</div>
-                                            <div className="table-col text-right amount">{sale.amount}</div>
-                                            <div className="table-col text-right">
-                                                <span className={`status-badge status-${sale.status.toLowerCase()}`}>
-                                                    {sale.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="stat-item-compact">
+                                    <span className="stat-value">Ksh {salesStats.totalCommissionEarnings.toFixed(2)}</span>
+                                    <span className="stat-label">Earned</span>
                                 </div>
                             </div>
+
+                            {!salesData || salesData.length === 0 ? (
+                                <div className="empty-state">
+                                    <DollarSign size={48} />
+                                    <p>No sales yet</p>
+                                    <p className="empty-state-subtitle">Your sales will appear here once you start earning commissions</p>
+                                </div>
+                            ) : (
+                                <div className="table-container">
+                                    <div className="table-header-compact">
+                                        <div className="table-col">Product</div>
+                                        <div className="table-col">Date</div>
+                                        <div className="table-col text-right">Commission</div>
+                                        <div className="table-col text-right">Status</div>
+                                    </div>
+
+                                    <div className="table-body-compact">
+                                        {salesData.map(sale => (
+                                            <div key={sale.id} className="table-row-compact">
+                                                <div className="table-col Product-name">{sale.product}</div>
+                                                <div className="table-col">{sale.date}</div>
+                                                <div className="table-col text-right amount">{sale.amount}</div>
+                                                <div className="table-col text-right">
+                                                    <span className={`status-badge status-${sale.status.toLowerCase()}`}>
+                                                        {sale.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -208,7 +248,7 @@ const Earnings = () => {
                                 </div>
                             </div>
 
-                            {referralsData.length === 0 ? (
+                            {!referralsData || referralsData.length === 0 ? (
                                 <div className="empty-state">
                                     <UserPlus size={48} />
                                     <p>No referrals yet</p>

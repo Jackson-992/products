@@ -1,157 +1,215 @@
-// Transactions.jsx
-import React, { useState } from 'react';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, Phone, Copy, Users, ShoppingCart } from 'lucide-react';
+// Transactions.tsx
+import React, { useState, useEffect } from 'react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, Copy, Users, ShoppingCart, AlertCircle } from 'lucide-react';
+import { useAffiliateCode } from '@/hooks/checkAffiliateCode.ts';
+import { affiliateProfileService } from '@/services/SellerServices/getBalance.ts';
+import { withdrawalService, Withdrawal, WithdrawalStatus } from '@/services/SellerServices/WithdrawalServices.ts';
 import './Transactions.css';
 
 const Transactions = () => {
+    const { affiliateCode, loading: affiliateLoading } = useAffiliateCode();
+
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
 
-    // Mock wallet data
-    const walletData = {
-        balance: 12560.75,
-        // available: 11560.75,
-        // pending: 1000.00
-    };
+    const [balance, setBalance] = useState<number>(0);
+    const [transactions, setTransactions] = useState<Withdrawal[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Mock transactions data with three types
-    const transactionsData = [
-        {
-            id: 1,
-            type: 'withdrawal',
-            amount: 5000.00,
-            phone: '+254712345678',
-            status: 'completed',
-            date: '2024-01-15 14:30',
-            reference: 'MPESA_REF_001'
-        },
-        {
-            id: 2,
-            type: 'withdrawal',
-            amount: 3000.00,
-            phone: '+254712345678',
-            status: 'pending',
-            date: '2024-01-14 10:15',
-            reference: 'MPESA_REF_002'
-        },
-        {
-            id: 3,
-            type: 'sales_commission',
-            amount: 1250.50,
-            status: 'completed',
-            date: '2024-01-13 16:45',
-            reference: 'SALES_COMM_001'
-        },
-        {
-            id: 4,
-            type: 'referral_commission',
-            amount: 250.00,
-            status: 'completed',
-            date: '2024-01-13 14:20',
-            reference: 'REF_COMM_001'
-        },
-        {
-            id: 5,
-            type: 'withdrawal',
-            amount: 2000.00,
-            phone: '+254712345678',
-            status: 'failed',
-            date: '2024-01-12 09:20',
-            reference: 'MPESA_REF_003'
-        },
-        {
-            id: 6,
-            type: 'sales_commission',
-            amount: 875.25,
-            status: 'completed',
-            date: '2024-01-11 11:30',
-            reference: 'SALES_COMM_002'
-        },
-        {
-            id: 7,
-            type: 'referral_commission',
-            amount: 250.00,
-            status: 'completed',
-            date: '2024-01-10 08:45',
-            reference: 'REF_COMM_002'
-        },
-        {
-            id: 8,
-            type: 'sales_commission',
-            amount: 420.75,
-            status: 'completed',
-            date: '2024-01-09 15:20',
-            reference: 'SALES_COMM_003'
+    // Load balance and transactions
+    useEffect(() => {
+        if (affiliateCode) {
+            loadData();
         }
-    ];
+    }, [affiliateCode]);
+
+    const loadData = async () => {
+        if (!affiliateCode) return;
+
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Load balance
+            const balanceData = await affiliateProfileService.getBalanceByAffiliateCode(affiliateCode);
+            if (balanceData !== null) {
+                setBalance(balanceData);
+            }
+
+            // Load withdrawal history
+            const historyData = await withdrawalService.getWithdrawalHistory(affiliateCode);
+            setTransactions(historyData);
+
+        } catch (err) {
+            console.error('Error loading data:', err);
+            setError('Failed to load wallet data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filteredTransactions = activeFilter === 'all'
-        ? transactionsData
-        : transactionsData.filter(transaction => transaction.status === activeFilter);
+        ? transactions
+        : transactions.filter(transaction => transaction.status === activeFilter);
 
-    const handleWithdrawal = (e) => {
+    const handleWithdrawal = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Handle withdrawal logic here
-        console.log('Withdrawal request:', { amount: withdrawAmount, phone: phoneNumber });
-        // Reset form
-        setWithdrawAmount('');
-        setPhoneNumber('');
+
+        if (!affiliateCode) {
+            setError('Affiliate code not found');
+            return;
+        }
+
+        const amount = parseFloat(withdrawAmount);
+
+        if (amount < 100) {
+            setError('Minimum withdrawal amount is KSh 100');
+            return;
+        }
+
+        if (amount > balance) {
+            setError('Insufficient balance');
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+            setError(null);
+            setSuccessMessage(null);
+
+            // Format phone number (remove leading 0 and add country code if needed)
+            let formattedPhone = phoneNumber.trim();
+            if (formattedPhone.startsWith('0')) {
+                formattedPhone = '+254' + formattedPhone.substring(1);
+            } else if (!formattedPhone.startsWith('+')) {
+                formattedPhone = '+254' + formattedPhone;
+            }
+
+            // Create withdrawal request
+            const withdrawal = await withdrawalService.createWithdrawal({
+                affiliate_code: affiliateCode,
+                amount: amount,
+                phone_number: formattedPhone
+            });
+
+            if (withdrawal) {
+                setSuccessMessage('Withdrawal request submitted successfully! Processing within 24 hours.');
+                setWithdrawAmount('');
+                setPhoneNumber('');
+
+                // Reload data to show new transaction
+                await loadData();
+
+                // Clear success message after 5 seconds
+                setTimeout(() => setSuccessMessage(null), 5000);
+            } else {
+                setError('Failed to submit withdrawal request. Please try again.');
+            }
+
+        } catch (err) {
+            console.error('Error submitting withdrawal:', err);
+            setError('An error occurred while processing your request');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    const getStatusIcon = (status) => {
+    const getStatusIcon = (status: string | null) => {
         switch (status) {
-            case 'completed': return <CheckCircle size={14} />;
-            case 'pending': return <Clock size={14} />;
-            case 'failed': return <XCircle size={14} />;
-            default: return null;
+            case WithdrawalStatus.COMPLETED: return <CheckCircle size={14} />;
+            case WithdrawalStatus.PENDING: return <Clock size={14} />;
+            case WithdrawalStatus.PROCESSING: return <Clock size={14} />;
+            case WithdrawalStatus.FAILED: return <XCircle size={14} />;
+            case WithdrawalStatus.CANCELLED: return <XCircle size={14} />;
+            default: return <Clock size={14} />;
         }
     };
 
-    const getStatusColor = (status) => {
+    const getStatusColor = (status: string | null) => {
         switch (status) {
-            case 'completed': return 'status-completed';
-            case 'pending': return 'status-pending';
-            case 'failed': return 'status-failed';
-            default: return '';
+            case WithdrawalStatus.COMPLETED: return 'status-completed';
+            case WithdrawalStatus.PENDING: return 'status-pending';
+            case WithdrawalStatus.PROCESSING: return 'status-pending';
+            case WithdrawalStatus.FAILED: return 'status-failed';
+            case WithdrawalStatus.CANCELLED: return 'status-failed';
+            default: return 'status-pending';
         }
     };
 
-    const getTransactionIcon = (type) => {
-        switch (type) {
-            case 'withdrawal': return <ArrowUpRight size={14} />;
-            case 'sales_commission': return <ShoppingCart size={14} />;
-            case 'referral_commission': return <Users size={14} />;
-            default: return <ArrowDownLeft size={14} />;
-        }
+    const getTransactionIcon = (type: string) => {
+        return <ArrowUpRight size={14} />;
     };
 
-    const getTransactionType = (type) => {
-        switch (type) {
-            case 'withdrawal': return 'Withdrawal';
-            case 'sales_commission': return 'Sales Commission';
-            case 'referral_commission': return 'Referral Commission';
-            default: return 'Transaction';
-        }
+    const getTransactionType = (type: string) => {
+        return 'Withdrawal';
     };
 
-    const getAmountColor = (type) => {
-        return type === 'withdrawal' ? 'amount-negative' : 'amount-positive';
+    const getAmountColor = (type: string) => {
+        return 'amount-negative';
     };
 
-    const getAmountPrefix = (type) => {
-        return type === 'withdrawal' ? '-' : '+';
+    const getAmountPrefix = (type: string) => {
+        return '-';
     };
 
-    const copyToClipboard = (text) => {
+    const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
     };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString('en-KE', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    if (affiliateLoading || loading) {
+        return (
+            <div className="transactions-container">
+                <div className="loading-state">Loading Wallet...</div>
+            </div>
+        );
+    }
+
+    if (!affiliateCode) {
+        return (
+            <div className="transactions-container">
+                <div className="error-state">
+                    <AlertCircle size={24} />
+                    <p>No affiliate account found</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="transactions-container">
             <div className="transactions-header">
                 <h2>Wallet & Transactions</h2>
             </div>
+
+            {/* Error/Success Messages */}
+            {error && (
+                <div className="alert alert-error">
+                    <AlertCircle size={16} />
+                    <span>{error}</span>
+                </div>
+            )}
+
+            {successMessage && (
+                <div className="alert alert-success">
+                    <CheckCircle size={16} />
+                    <span>{successMessage}</span>
+                </div>
+            )}
 
             {/* Wallet Balance */}
             <div className="wallet-section">
@@ -162,19 +220,9 @@ const Transactions = () => {
                         </div>
                         <div className="wallet-info">
                             <span className="wallet-label">Available Balance</span>
-                            <span className="wallet-amount">KSh {walletData.balance.toLocaleString()}</span>
+                            <span className="wallet-amount">KSh {balance.toLocaleString()}</span>
                         </div>
                     </div>
-                    {/*<div className="wallet-details">*/}
-                    {/*    <div className="wallet-detail">*/}
-                    {/*        <span className="detail-label">Available:</span>*/}
-                    {/*        <span className="detail-amount">KSh {walletData.available.toLocaleString()}</span>*/}
-                    {/*    </div>*/}
-                    {/*    <div className="wallet-detail">*/}
-                    {/*        <span className="detail-label">Pending:</span>*/}
-                    {/*        <span className="detail-amount pending">KSh {walletData.pending.toLocaleString()}</span>*/}
-                    {/*    </div>*/}
-                    {/*</div>*/}
                 </div>
             </div>
 
@@ -194,35 +242,45 @@ const Transactions = () => {
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
                                 placeholder="Enter amount"
-                                min="100"
-                                max={walletData.available}
+                                min="500"
+                                max={balance}
                                 required
+                                disabled={submitting}
                             />
                         </div>
                         <div className="form-group">
                             <label htmlFor="phone">M-Pesa Phone Number</label>
                             <div className="phone-input-container">
-                                <Phone size={14} className="phone-icon" />
                                 <input
                                     type="tel"
                                     id="phone"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="    0712345678"
+                                    placeholder="07********"
                                     pattern="0[0-9]{9}"
                                     required
+                                    disabled={submitting}
                                 />
                             </div>
                         </div>
                         <button
                             type="submit"
                             className="withdraw-btn"
-                            disabled={!withdrawAmount || !phoneNumber || parseFloat(withdrawAmount) > walletData.available}
+                            disabled={
+                                submitting ||
+                                !withdrawAmount ||
+                                !phoneNumber ||
+                                parseFloat(withdrawAmount) > balance ||
+                                parseFloat(withdrawAmount) < 500 ||
+                                parseFloat(withdrawAmount) > 5000
+                            }
+
                         >
-                            Withdraw Now
+                            {submitting ? 'Processing...' : 'Withdraw Now'}
                         </button>
                         <div className="withdrawal-note">
-                            Minimum withdrawal: KSh 100 • Processed within 24 hours
+                            Min-withdrawal: KSh 500 • Max-withdrawal: Ksh 5000
+                             • Processed within 24 hours
                         </div>
                     </form>
                 </div>
@@ -240,20 +298,20 @@ const Transactions = () => {
                             All
                         </button>
                         <button
-                            className={`filter-btn ${activeFilter === 'completed' ? 'active' : ''}`}
-                            onClick={() => setActiveFilter('completed')}
+                            className={`filter-btn ${activeFilter === WithdrawalStatus.COMPLETED ? 'active' : ''}`}
+                            onClick={() => setActiveFilter(WithdrawalStatus.COMPLETED)}
                         >
                             Completed
                         </button>
                         <button
-                            className={`filter-btn ${activeFilter === 'pending' ? 'active' : ''}`}
-                            onClick={() => setActiveFilter('pending')}
+                            className={`filter-btn ${activeFilter === WithdrawalStatus.PENDING ? 'active' : ''}`}
+                            onClick={() => setActiveFilter(WithdrawalStatus.PENDING)}
                         >
                             Pending
                         </button>
                         <button
-                            className={`filter-btn ${activeFilter === 'failed' ? 'active' : ''}`}
-                            onClick={() => setActiveFilter('failed')}
+                            className={`filter-btn ${activeFilter === WithdrawalStatus.FAILED ? 'active' : ''}`}
+                            onClick={() => setActiveFilter(WithdrawalStatus.FAILED)}
                         >
                             Failed
                         </button>
@@ -261,42 +319,54 @@ const Transactions = () => {
                 </div>
 
                 <div className="transactions-list">
-                    {filteredTransactions.map(transaction => (
-                        <div key={transaction.id} className="transaction-item">
-                            <div className="transaction-icon">
-                                {getTransactionIcon(transaction.type)}
-                            </div>
-                            <div className="transaction-details">
-                                <div className="transaction-main">
-                                    <span className="transaction-type">
-                                        {getTransactionType(transaction.type)}
-                                    </span>
-                                    <span className={`transaction-amount ${getAmountColor(transaction.type)}`}>
-                                        {getAmountPrefix(transaction.type)}KSh {transaction.amount.toLocaleString()}
-                                    </span>
-                                </div>
-                                <div className="transaction-meta">
-                                    <span className="transaction-date">{transaction.date}</span>
-                                    {transaction.phone && (
-                                        <span className="transaction-phone">
-                                            {transaction.phone}
-                                        </span>
-                                    )}
-                                    <span
-                                        className="transaction-reference"
-                                        onClick={() => copyToClipboard(transaction.reference)}
-                                    >
-                                        {transaction.reference}
-                                        <Copy size={10} />
-                                    </span>
-                                </div>
-                            </div>
-                            <div className={`transaction-status ${getStatusColor(transaction.status)}`}>
-                                {getStatusIcon(transaction.status)}
-                                <span>{transaction.status}</span>
-                            </div>
+                    {filteredTransactions.length === 0 ? (
+                        <div className="empty-state">
+                            <p>No transactions found</p>
                         </div>
-                    ))}
+                    ) : (
+                        filteredTransactions.map(transaction => (
+                            <div key={transaction.id} className="transaction-item">
+                                <div className="transaction-icon">
+                                    {getTransactionIcon('withdrawal')}
+                                </div>
+                                <div className="transaction-details">
+                                    <div className="transaction-main">
+                                        <span className="transaction-type">
+                                            {getTransactionType('withdrawal')}
+                                        </span>
+                                        <span className={`transaction-amount ${getAmountColor('withdrawal')}`}>
+                                            {getAmountPrefix('withdrawal')}KSh {Number(transaction.amount).toLocaleString()}
+                                        </span>
+                                    </div>
+                                    <div className="transaction-meta">
+                                        <span className="transaction-date">{formatDate(transaction.created_at)}</span>
+                                        {transaction.phone_number && (
+                                            <span className="transaction-phone">
+                                                {transaction.phone_number}
+                                            </span>
+                                        )}
+                                        <span
+                                            className="transaction-reference"
+                                            onClick={() => copyToClipboard(`WD-${transaction.id}`)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            WD-{transaction.id}
+                                            <Copy size={10} />
+                                        </span>
+                                    </div>
+                                    {transaction.reason_of_status && (
+                                        <div className="transaction-reason">
+                                            {transaction.reason_of_status}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className={`transaction-status ${getStatusColor(transaction.status)}`}>
+                                    {getStatusIcon(transaction.status)}
+                                    <span>{transaction.status || 'pending'}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>
