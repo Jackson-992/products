@@ -1,12 +1,13 @@
 import './OrderTable.css';
 import { useState, useMemo } from 'react';
 import OrderDetails from './OrderDetails';
-import { useOrders } from './useOrders';
+import { useOrders } from '@/hooks/useOrders.ts';
 
 const OrderTable = () => {
-    const { orders, loading } = useOrders();
+    const { orders, loading, error, getOrderWithItems } = useOrders();
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
     const [filters, setFilters] = useState({
         orderId: '',
         userId: '',
@@ -32,21 +33,32 @@ const OrderTable = () => {
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
             const matchesOrderId = filters.orderId ?
-                order.order_id.toLowerCase().includes(filters.orderId.toLowerCase()) : true;
+                order.id.toString().includes(filters.orderId) : true;
 
             const matchesUserId = filters.userId ?
-                order.user_id.toLowerCase().includes(filters.userId.toLowerCase()) : true;
+                order.user_id.toString().includes(filters.userId) : true;
 
             const matchesPhone = filters.phone ?
-                order.phone.toLowerCase().includes(filters.phone.toLowerCase()) : true;
+                order.phone_number.toLowerCase().includes(filters.phone.toLowerCase()) : true;
 
             return matchesOrderId && matchesUserId && matchesPhone;
         });
     }, [orders, filters]);
 
-    const handleOrderClick = (order) => {
-        setSelectedOrder(order);
-        setIsSidebarOpen(true);
+    const handleOrderClick = async (order) => {
+        try {
+            setLoadingOrderDetails(true);
+            const orderWithItems = await getOrderWithItems(order.id);
+            setSelectedOrder(orderWithItems);
+            setIsSidebarOpen(true);
+        } catch (err) {
+            console.error('Error loading order details:', err);
+            // Fallback to basic order data if details fail
+            setSelectedOrder(order);
+            setIsSidebarOpen(true);
+        } finally {
+            setLoadingOrderDetails(false);
+        }
     };
 
     const closeSidebar = () => {
@@ -65,7 +77,7 @@ const OrderTable = () => {
     };
 
     const getStatusClass = (status) => {
-        switch (status.toLowerCase()) {
+        switch (status?.toLowerCase()) {
             case 'completed':
                 return 'status-completed';
             case 'pending':
@@ -79,10 +91,25 @@ const OrderTable = () => {
         }
     };
 
+    const formatAmount = (amount) => {
+        return typeof amount === 'number' ? amount.toFixed(2) : '0.00';
+    };
+
     const hasActiveFilters = filters.orderId || filters.userId || filters.phone;
 
     if (loading) {
         return <div className="loading">Loading orders...</div>;
+    }
+
+    if (error) {
+        return (
+            <div className="error-state">
+                {error}
+                <button onClick={() => window.location.reload()} className="retry-btn">
+                    Retry
+                </button>
+            </div>
+        );
     }
 
     return (
@@ -143,13 +170,13 @@ const OrderTable = () => {
                 <table className="orders-table">
                     <thead>
                     <tr>
-                        <th className="text-left">Order ID</th>
-                        <th className="text-left">User Name</th>
-                        <th className="text-left hide-on-mobile">User ID</th>
-                        <th className="text-left hide-on-small">Phone</th>
+                        <th>Order ID</th>
+                        <th>User Name</th>
+                        <th className="hide-on-mobile">User ID</th>
+                        <th className="hide-on-small">Phone</th>
                         <th className="text-right">Amount</th>
                         <th className="text-center">Status</th>
-                        <th className="text-left hide-on-small">Date Created</th>
+                        <th className="hide-on-small">Date Created</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -160,24 +187,24 @@ const OrderTable = () => {
                                 className="Order-row"
                                 onClick={() => handleOrderClick(order)}
                             >
-                                <td className="Order-id text-left">{order.order_id}</td>
-                                <td className="User-name text-left">{order.user_name}</td>
-                                <td className="user-id text-left hide-on-mobile">{order.user_id}</td>
-                                <td className="phone text-left hide-on-small">{order.phone}</td>
-                                <td className="amount text-right">${order.amount}</td>
+                                <td className="Order-id">{order.id.toString()}</td>
+                                <td className="User-name">{order.user_name}</td>
+                                <td className="user-id hide-on-mobile">{order.user_id.toString()}</td>
+                                <td className="phone hide-on-small">{order.phone_number}</td>
+                                <td className="amount text-right">Ksh {formatAmount(order.total_amount)}</td>
                                 <td className="status text-center">
-                    <span className={`status-badge ${getStatusClass(order.status)}`}>
-                      {order.status}
-                    </span>
+                                    <span className={`status-badge ${getStatusClass(order.status)}`}>
+                                        {order.status}
+                                    </span>
                                 </td>
-                                <td className="date-created text-left hide-on-small">
+                                <td className="date-created hide-on-small">
                                     {formatDate(order.created_at)}
                                 </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="7" className="no-results text-center">
+                            <td colSpan="7" className="no-results">
                                 {hasActiveFilters ? 'No orders match your filters' : 'No orders found'}
                             </td>
                         </tr>
@@ -190,6 +217,7 @@ const OrderTable = () => {
                 order={selectedOrder}
                 isOpen={isSidebarOpen}
                 onClose={closeSidebar}
+                loading={loadingOrderDetails}
             />
         </div>
     );
