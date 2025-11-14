@@ -1,54 +1,42 @@
 import './UsersTable.css';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { userService } from '@/services/AdminServices/adminUserServices.ts';
+
+interface User {
+    id: bigint;
+    name: string | null;
+    auth_id: string;
+    is_admin: boolean;
+    is_affiliate: boolean;
+}
 
 const UsersTable = () => {
-    // Mock data - replace with actual API call
-    const [users, setUsers] = useState([
-        {
-            id: 1,
-            name: 'John Doe',
-            user_id: 'USR001',
-            phone: '+1-555-0101',
-            email: 'john@example.com',
-            date_created: '2024-01-15',
-            is_admin: true,
-            is_affiliate: false
-        },
-        {
-            id: 2,
-            name: 'Jane Smith',
-            user_id: 'USR002',
-            phone: '+1-555-0102',
-            email: 'jane@example.com',
-            date_created: '2024-01-16',
-            is_admin: false,
-            is_affiliate: true
-        },
-        {
-            id: 3,
-            name: 'Bob Johnson',
-            user_id: 'USR003',
-            phone: '+1-555-0103',
-            email: 'bob@example.com',
-            date_created: '2024-01-17',
-            is_admin: false,
-            is_affiliate: false
-        },
-        {
-            id: 4,
-            name: 'Alice Brown',
-            user_id: 'USR004',
-            phone: '+1-555-0104',
-            email: 'alice@example.com',
-            date_created: '2024-01-18',
-            is_admin: true,
-            is_affiliate: true
-        }
-    ]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [adminFilter, setAdminFilter] = useState('all'); // 'all', 'admin', 'non-admin'
-    const [affiliateFilter, setAffiliateFilter] = useState('all'); // 'all', 'affiliate', 'non-affiliate'
+    const [adminFilter, setAdminFilter] = useState('all');
+    const [affiliateFilter, setAffiliateFilter] = useState('all');
+
+    // Fetch users from Supabase
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const usersData = await userService.getAllUsers();
+                setUsers(usersData);
+            } catch (err) {
+                console.error('Error fetching users:', err);
+                setError('Failed to load users. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUsers();
+    }, []);
 
     // Filter users based on search term and role filters
     const filteredUsers = useMemo(() => {
@@ -58,8 +46,8 @@ const UsersTable = () => {
         if (searchTerm) {
             const lowercasedSearch = searchTerm.toLowerCase();
             filtered = filtered.filter(user =>
-                user.email.toLowerCase().includes(lowercasedSearch) ||
-                user.user_id.toLowerCase().includes(lowercasedSearch)
+                (user.name?.toLowerCase().includes(lowercasedSearch) || false) ||
+                user.auth_id.toLowerCase().includes(lowercasedSearch)
             );
         }
 
@@ -80,10 +68,6 @@ const UsersTable = () => {
         return filtered;
     }, [users, searchTerm, adminFilter, affiliateFilter]);
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString();
-    };
-
     const clearFilters = () => {
         setSearchTerm('');
         setAdminFilter('all');
@@ -92,6 +76,30 @@ const UsersTable = () => {
 
     const hasActiveFilters = searchTerm || adminFilter !== 'all' || affiliateFilter !== 'all';
 
+    if (loading) {
+        return (
+            <div className="users-table-container">
+                <div className="loading-state">Loading users...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="users-table-container">
+                <div className="error-state">
+                    {error}
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="retry-btn"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="users-table-container">
             {/* Search and Filter Section */}
@@ -99,7 +107,7 @@ const UsersTable = () => {
                 <div className="search-filter-row">
                     <input
                         type="text"
-                        placeholder="Search by email or user ID..."
+                        placeholder="Search by name or auth ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="search-input"
@@ -149,11 +157,9 @@ const UsersTable = () => {
                 <table className="users-table">
                     <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Name</th>
-                        <th>User ID</th>
-                        <th className="hide-on-mobile">Phone</th>
-                        <th>Email</th>
-                        <th className="hide-on-small">Date Created</th>
+                        <th>Auth ID</th>
                         <th>Admin</th>
                         <th>Affiliate</th>
                     </tr>
@@ -162,29 +168,25 @@ const UsersTable = () => {
                     {filteredUsers.length > 0 ? (
                         filteredUsers.map(user => (
                             <tr key={user.id}>
-                                <td className="name-cell">{user.name}</td>
-                                <td className="user-id-cell">{user.user_id}</td>
-                                <td className="phone-cell hide-on-mobile">{user.phone}</td>
-                                <td className="email-cell">{user.email}</td>
-                                <td className="date-cell hide-on-small">
-                                    {formatDate(user.date_created)}
+                                <td className="id-cell">{user.id.toString()}</td>
+                                <td className="name-cell">{user.name || 'N/A'}</td>
+                                <td className="auth-id-cell">{user.auth_id}</td>
+                                <td className="status-cell">
+                                    <span className={`status-badge ${user.is_admin ? 'status-admin' : 'status-none'}`}>
+                                        {user.is_admin ? 'Yes' : 'No'}
+                                    </span>
                                 </td>
                                 <td className="status-cell">
-                    <span className={`status-badge ${user.is_admin ? 'status-admin' : 'status-none'}`}>
-                      {user.is_admin ? 'Yes' : 'No'}
-                    </span>
-                                </td>
-                                <td className="status-cell">
-                    <span className={`status-badge ${user.is_affiliate ? 'status-affiliate' : 'status-none'}`}>
-                      {user.is_affiliate ? 'Yes' : 'No'}
-                    </span>
+                                    <span className={`status-badge ${user.is_affiliate ? 'status-affiliate' : 'status-none'}`}>
+                                        {user.is_affiliate ? 'Yes' : 'No'}
+                                    </span>
                                 </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="7" className="no-results">
-                                No users found matching your filters
+                            <td colSpan="5" className="no-results">
+                                {users.length === 0 ? 'No users found' : 'No users found matching your filters'}
                             </td>
                         </tr>
                     )}
