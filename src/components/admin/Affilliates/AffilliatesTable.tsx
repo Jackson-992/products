@@ -1,7 +1,7 @@
 import './AffilliatesTable.css';
 import { useState } from 'react';
 import AffiliateDetails from './AffiliateDetails';
-import { useAffiliates } from './useAffiliates';
+import { useAffiliates } from '@/hooks/useAffiliates.ts';
 
 const AffiliatesTable = () => {
     const { affiliates, loading } = useAffiliates();
@@ -24,13 +24,17 @@ const AffiliatesTable = () => {
     // Filter and sort affiliates
     const filteredAndSortedAffiliates = affiliates
         .filter(affiliate =>
-            affiliate.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            affiliate.user_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            affiliate.affiliate_code.toLowerCase().includes(searchTerm.toLowerCase())
+            (affiliate.user_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (affiliate.user_id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (affiliate.affiliate_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
         )
         .sort((a, b) => {
             let aValue = a[sortBy];
             let bValue = b[sortBy];
+
+            // Handle null/undefined values
+            if (aValue === null || aValue === undefined) aValue = '';
+            if (bValue === null || bValue === undefined) bValue = '';
 
             if (sortBy === 'created_at') {
                 aValue = new Date(aValue);
@@ -45,6 +49,7 @@ const AffiliatesTable = () => {
         });
 
     const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -66,6 +71,11 @@ const AffiliatesTable = () => {
         return sortOrder === 'asc' ? '↑' : '↓';
     };
 
+    const formatCurrency = (amount) => {
+        if (amount === null || amount === undefined) return 'Ksh 0';
+        return `Ksh ${Number(amount).toLocaleString()}`;
+    };
+
     if (loading) {
         return <div className="loading">Loading affiliates...</div>;
     }
@@ -76,8 +86,8 @@ const AffiliatesTable = () => {
                 <div className="header-left">
                     <h2>Affiliate Partners</h2>
                     <span className="affiliate-count">
-            {filteredAndSortedAffiliates.length} of {affiliates.length} affiliates
-          </span>
+                        {filteredAndSortedAffiliates.length} of {affiliates.length} affiliates
+                    </span>
                 </div>
 
                 <div className="header-controls">
@@ -129,6 +139,12 @@ const AffiliatesTable = () => {
                         >
                             Earned {getSortIcon('total_earned')}
                         </th>
+                        <th
+                            className="sortable hide-on-small"
+                            onClick={() => handleSort('balance')}
+                        >
+                            Balance {getSortIcon('balance')}
+                        </th>
                     </tr>
                     </thead>
                     <tbody>
@@ -140,24 +156,27 @@ const AffiliatesTable = () => {
                                 onClick={() => handleAffiliateClick(affiliate)}
                             >
                                 <td className="affiliate-code">
-                                    <span className="code-badge">{affiliate.affiliate_code}</span>
+                                    <span className="code-badge">{affiliate.affiliate_code || 'N/A'}</span>
                                 </td>
-                                <td className="user-name">{affiliate.user_name}</td>
-                                <td className="user-id">{affiliate.user_id}</td>
+                                <td className="user-name">{affiliate.user_name || 'Unknown User'}</td>
+                                <td className="user-id">{affiliate.user_id || 'N/A'}</td>
                                 <td className="join-date hide-on-mobile">
                                     {formatDate(affiliate.created_at)}
                                 </td>
                                 <td className="referrals-count">
-                                    {affiliate.total_referrals}
+                                    {affiliate.total_referrals || 0}
                                 </td>
                                 <td className="total-earned hide-on-small">
-                                    Ksh {affiliate.total_earned.toLocaleString()}
+                                    {formatCurrency(affiliate.total_earned)}
+                                </td>
+                                <td className="balance hide-on-small">
+                                    {formatCurrency(affiliate.balance)}
                                 </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="6" className="no-results">
+                            <td colSpan="7" className="no-results">
                                 {searchTerm ? 'No affiliates match your search' : 'No affiliates found'}
                             </td>
                         </tr>
