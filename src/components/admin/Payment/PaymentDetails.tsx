@@ -36,6 +36,8 @@ const PaymentDetails = ({ payment, isOpen, onClose }) => {
                 return 'type-sales';
             case 'referral_commission':
                 return 'type-referral';
+            case 'registration':
+                return 'type-registration';
             default:
                 return 'type-default';
         }
@@ -51,10 +53,6 @@ const PaymentDetails = ({ payment, isOpen, onClose }) => {
                             <div className="detail-item">
                                 <label>Invitee Code:</label>
                                 <span>{payment.details.invitee_code}</span>
-                            </div>
-                            <div className="detail-item">
-                                <label>Invitee Name:</label>
-                                <span>{payment.details.invitee_name}</span>
                             </div>
                             <div className="detail-item">
                                 <label>Commission Amount:</label>
@@ -140,6 +138,41 @@ const PaymentDetails = ({ payment, isOpen, onClose }) => {
                     </div>
                 );
 
+            case 'registration':
+                return (
+                    <div className="details-section">
+                        <h4>Registration Payment Details</h4>
+                        <div className="details-grid">
+                            <div className="detail-item">
+                                <label>User ID:</label>
+                                <span>{payment.details.user_id}</span>
+                            </div>
+                            <div className="detail-item">
+                                <label>Phone Number:</label>
+                                <span className="phone-number">{payment.details.phone_number}</span>
+                            </div>
+                            <div className="detail-item">
+                                <label>Referer Code:</label>
+                                <span className="referer-code">{payment.details.referer_code || 'N/A'}</span>
+                            </div>
+                            <div className="detail-item">
+                                <label>Registration Amount:</label>
+                                <span className="amount">Ksh {payment.details.amount?.toLocaleString()}</span>
+                            </div>
+                            <div className="detail-item">
+                                <label>Payment Created:</label>
+                                <span>{formatDate(payment.details.created_at)}</span>
+                            </div>
+                            {payment.details.completed_at && (
+                                <div className="detail-item">
+                                    <label>Completed At:</label>
+                                    <span>{formatDate(payment.details.completed_at)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
             default:
                 return null;
         }
@@ -174,14 +207,14 @@ const PaymentDetails = ({ payment, isOpen, onClose }) => {
                             <div className="summary-item">
                                 <label>Type:</label>
                                 <span className={`type-badge ${getTypeClass(payment.type)}`}>
-                  {payment.type.replace('_', ' ')}
-                </span>
+                                    {payment.type.replace('_', ' ')}
+                                </span>
                             </div>
                             <div className="summary-item">
                                 <label>Status:</label>
                                 <span className={`status-badge ${getStatusClass(payment.status)}`}>
-                  {payment.status}
-                </span>
+                                    {payment.status}
+                                </span>
                             </div>
                             <div className="summary-item">
                                 <label>Date Created:</label>

@@ -6,7 +6,6 @@ import EditProductDialog from './Products/EditProductDialog.tsx';
 import AnalyticsTab from './Analytics/AnalyticsTab.tsx';
 import UsersTable from './Users/UsersTable.tsx';
 import OrderTable from './Orders/OrderTable.tsx';
-import RefundTable from './Refunds/RefundTable.tsx';
 import AffilliatesTable from './Affilliates/AffilliatesTable.tsx';
 import Payment from './Payment/Payment.tsx'
 import {getProducts} from '@/services/CommonServices/ProductService.ts';
@@ -144,7 +143,6 @@ const MasterDashboard = () => {
                             <TabsTrigger value="products">Products</TabsTrigger>
                             <TabsTrigger value="users">Users</TabsTrigger>
                             <TabsTrigger value="orders">Orders</TabsTrigger>
-                            <TabsTrigger value="refunds">Refunds</TabsTrigger>
                             <TabsTrigger value="sellers">Affiliates</TabsTrigger>
                             <TabsTrigger value="payments">Payments</TabsTrigger>
                             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -169,10 +167,6 @@ const MasterDashboard = () => {
 
                     <TabsContent value="orders">
                         <OrderTable />
-                    </TabsContent>
-
-                    <TabsContent value="refunds">
-                        <RefundTable />
                     </TabsContent>
 
                     <TabsContent value="analytics">
