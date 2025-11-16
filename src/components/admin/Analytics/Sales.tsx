@@ -1,126 +1,269 @@
-import './Sales.css'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import React, { useState, useEffect } from 'react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, DollarSign, ShoppingCart, Package } from 'lucide-react';
 
-const SalesTab = () => {
-    // Mock data - replace with actual API data
-    const salesData = [
-        { month: 'Jan', sales: 4000, products: 240 },
-        { month: 'Feb', sales: 3000, products: 198 },
-        { month: 'Mar', sales: 5000, products: 320 },
-        { month: 'Apr', sales: 2780, products: 189 },
-        { month: 'May', sales: 3890, products: 276 },
-        { month: 'Jun', sales: 4390, products: 312 }
-    ]
+// Mock service - replace with your actual service import
+import { salesAnalyticsService } from '@/services/AdminServices/analytics/adminSalesAnalytics.ts';
+const SalesAnalyticsDashboard = () => {
+    const [stats, setStats] = useState({
+        totalIncome: 0,
+        totalProductsSold: 0,
+        totalOrders: 0,
+        averageOrderValue: 0
+    });
 
-    const topProducts = [
-        { name: 'Product A', sales: 1200 },
-        { name: 'Product B', sales: 980 },
-        { name: 'Product C', sales: 760 },
-        { name: 'Product D', sales: 540 },
-        { name: 'Product E', sales: 320 }
-    ]
+    const [topProducts, setTopProducts] = useState([]);
+    const [monthlySales, setMonthlySales] = useState([]);
+    const [categoryData, setCategoryData] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+    useEffect(() => {
+        loadDashboardData();
+    }, []);
 
-    const stats = {
-        totalIncome: '$23,450',
-        totalProducts: '1,335',
-        averageOrder: '$175.60',
-        growth: '+12.5%'
+    const loadDashboardData = async () => {
+        setLoading(true);
+        try {
+            const [income, products, orders, avgOrder, topProds, monthly, categories] = await Promise.all([
+                salesAnalyticsService.getTotalIncome(),
+                salesAnalyticsService.getTotalProductsSold(),
+                salesAnalyticsService.getTotalOrders(),
+                salesAnalyticsService.getAverageOrderValue(),
+                salesAnalyticsService.getTopProducts(5),
+                salesAnalyticsService.getMonthlySalesTrend(12),
+                salesAnalyticsService.getSalesByCategory()
+            ]);
+
+            setStats({
+                totalIncome: income.success ? income.total : 0,
+                totalProductsSold: products.success ? products.total : 0,
+                totalOrders: orders.success ? orders.total : 0,
+                averageOrderValue: avgOrder.success ? avgOrder.average : 0
+            });
+
+            setTopProducts(topProds.success ? topProds.products : []);
+            setMonthlySales(monthly.success ? monthly.trend : []);
+            setCategoryData(categories.success ? categories.categories : []);
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'Ksh'
+        }).format(value);
+    };
+
+    const formatMonth = (monthStr) => {
+        const [year, month] = monthStr.split('-');
+        const date = new Date(year, parseInt(month) - 1);
+        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    };
+
+    const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading dashboard...</p>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="sales-tab">
-            <h2>Sales Analytics</h2>
-
-            {/* Stats Cards */}
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <h3>Total Income</h3>
-                    <div className="stat-value">{stats.totalIncome}</div>
-                    <div className="stat-growth positive">{stats.growth}</div>
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Sales Analytics</h1>
+                    <p className="text-gray-600 mt-2">Overview of your store's performance</p>
                 </div>
 
-                <div className="stat-card">
-                    <h3>Products Sold</h3>
-                    <div className="stat-value">{stats.totalProducts}</div>
-                    <div className="stat-growth positive">+8.2%</div>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                                <p className="text-2xl font-bold text-gray-900 mt-2">
+                                    {formatCurrency(stats.totalIncome)}
+                                </p>
+                            </div>
+                            <div className="p-3 bg-blue-100 rounded-full">
+                                <DollarSign className="w-6 h-6 text-blue-600" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                                <p className="text-2xl font-bold text-gray-900 mt-2">
+                                    {stats.totalOrders.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-3 bg-green-100 rounded-full">
+                                <ShoppingCart className="w-6 h-6 text-green-600" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Products Sold</p>
+                                <p className="text-2xl font-bold text-gray-900 mt-2">
+                                    {stats.totalProductsSold.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-3 bg-purple-100 rounded-full">
+                                <Package className="w-6 h-6 text-purple-600" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
+                                <p className="text-2xl font-bold text-gray-900 mt-2">
+                                    {formatCurrency(stats.averageOrderValue)}
+                                </p>
+                            </div>
+                            <div className="p-3 bg-orange-100 rounded-full">
+                                <TrendingUp className="w-6 h-6 text-orange-600" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="stat-card">
-                    <h3>Average Order</h3>
-                    <div className="stat-value">{stats.averageOrder}</div>
-                    <div className="stat-growth positive">+3.1%</div>
-                </div>
-            </div>
+                {/* Charts Row 1 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* Monthly Sales Trend */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Monthly Sales Trend</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={monthlySales}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="month"
+                                    tickFormatter={formatMonth}
+                                    tick={{ fontSize: 12 }}
+                                />
+                                <YAxis tick={{ fontSize: 12 }} />
+                                <Tooltip
+                                    formatter={(value, name) => [
+                                        name === 'revenue' ? formatCurrency(value) : value,
+                                        name === 'revenue' ? 'Revenue' : 'Orders'
+                                    ]}
+                                    labelFormatter={formatMonth}
+                                />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke="#3b82f6"
+                                    strokeWidth={2}
+                                    name="Revenue"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="orders"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    name="Orders"
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
 
-            {/* Charts */}
-            <div className="charts-grid">
-                <div className="chart-container">
-                    <h3>Monthly Sales Trend</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={salesData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="sales" fill="#007bff" />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {/* Top Products */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Top Performing Products</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={topProducts}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="product_name"
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={100}
+                                    tick={{ fontSize: 10 }}
+                                    interval={0}
+                                />
+                                <YAxis
+                                    tick={{ fontSize: 12 }}
+                                    // label={{ value: 'Revenue', angle: -90, position: 'insideLeft' }}
+                                />
+                                <Tooltip
+                                    formatter={(value, name) => [
+                                        formatCurrency(value),
+                                        name === 'total_revenue' ? 'Revenue' : name
+                                    ]}
+                                />
+                                <Legend />
+                                <Bar dataKey="total_revenue" fill="#8b5cf6" name="Revenue" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
-                <div className="chart-container">
-                    <h3>Top Performing Products</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={topProducts}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="sales"
-                            >
-                                {topProducts.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
+                {/* Charts Row 2 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Sales by Category */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Sales by Category</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={categoryData}
+                                    dataKey="revenue"
+                                    nameKey="category"
+                                    cx="50%"
+                                    cy="50%"
+                                    outerRadius={100}
+                                    label={(entry) => entry.category}
+                                >
+                                    {categoryData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
 
-            {/* Products Table */}
-            <div className="products-table">
-                <h3>Top Performing Products</h3>
-                <div className="table-container">
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Sales</th>
-                            <th>Revenue</th>
-                            <th>Growth</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {topProducts.map((product, index) => (
-                            <tr key={index}>
-                                <td>{product.name}</td>
-                                <td>{product.sales}</td>
-                                <td>${(product.sales * 45.99).toLocaleString()}</td>
-                                <td className="positive">+{(Math.random() * 20 + 5).toFixed(1)}%</td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
+                    {/* Product Quantities */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Top Products by Quantity</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={topProducts}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="product_name"
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={100}
+                                    tick={{ fontSize: 10 }}
+                                />
+                                <YAxis tick={{ fontSize: 12 }} />
+                                <Tooltip />
+                                <Bar dataKey="total_quantity" fill="#ec4899" name="Units Sold" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default SalesTab
+export default SalesAnalyticsDashboard;
