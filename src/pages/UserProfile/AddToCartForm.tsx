@@ -1,11 +1,10 @@
-// components/AddToCartForm.tsx
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ShoppingCart, Check } from 'lucide-react';
 import { getProductVariations, ProductVariation } from '@/services/AdminServices/adminProductService.ts';
 import { addToCart } from '@/services/CommonServices/CartServices.ts';
-import { supabase } from '@/services/supabase'; // Import supabase
+import useUserProfile from '@/hooks/userProfile';
 import './AddToCartForm.css';
 
 interface AddToCartFormProps {
@@ -27,40 +26,13 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
     const [quantity, setQuantity] = useState<number>(1);
     const [loading, setLoading] = useState<boolean>(true);
     const [addingToCart, setAddingToCart] = useState<boolean>(false);
-    const [userProfile, setUserProfile] = useState<any>(null); // Add user profile state
+
+    // Use the custom hook for user profile
+    const { userProfile, loading: profileLoading } = useUserProfile();
 
     useEffect(() => {
         loadVariations();
-        getUserProfile();
     }, [product.id]);
-
-    const getUserProfile = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', session.user.id)
-                    .single();
-
-                if (!error && profile) {
-                    setUserProfile(profile);
-                } else {
-                    console.error('Error fetching user profile:', error);
-                    setUserProfile(null);
-                }
-            }
-        } catch (error) {
-            console.error('Error getting user profile:', error);
-            setUserProfile(null);
-        }
-    };
-
-    const getCurrentUserId = (): number | null => {
-        // Return the user_id from user_profiles, not auth_id
-        return userProfile?.id || null;
-    };
 
     const loadVariations = async () => {
         try {
@@ -109,9 +81,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
     const maxQuantity = selectedVariation ? selectedVariation.quantity : 0;
 
     const handleAddToCart = async () => {
-        const userId = getCurrentUserId();
-
-        if (!userId) {
+        if (!userProfile) {
             toast({
                 title: "Authentication Required",
                 description: "Please log in to add items to cart",
@@ -161,7 +131,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
 
             // Use the actual addToCart service
             const result = await addToCart(
-                userId,
+                userProfile.id,
                 product.id,
                 quantity,
                 variationData
@@ -204,9 +174,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
 
     // Simple add to cart for products without variations
     const handleSimpleAddToCart = async () => {
-        const userId = getCurrentUserId();
-
-        if (!userId) {
+        if (!userProfile) {
             toast({
                 title: "Authentication Required",
                 description: "Please log in to add items to cart",
@@ -220,7 +188,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
         try {
             // For products without variations, pass empty variation data
             const result = await addToCart(
-                userId,
+                userProfile.id,
                 product.id,
                 quantity,
                 {} // No variation data
@@ -261,7 +229,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
         }
     };
 
-    if (loading) {
+    if (loading || profileLoading) {
         return <div className="add-to-cart-loading">Loading options...</div>;
     }
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock, DollarSign, MapPin, Phone } from 'lucide-react';
-import { supabase } from '@/services/supabase';
+import { getUserOrders } from '@/services/CommonServices/OrderServices';
+import useUserProfile from '@/hooks/userProfile';
 import './Orders.css';
 
 const Orders = () => {
@@ -10,35 +11,7 @@ const Orders = () => {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [activeTab, setActiveTab] = useState('pending');
-    const [userProfile, setUserProfile] = useState(null);
-
-    useEffect(() => {
-        const getUserProfile = async () => {
-            try {
-                // First get the auth user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    setLoading(false);
-                    return;
-                }
-
-                // Then get the user profile with integer ID
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', user.id)
-                    .single();
-
-                if (error) throw error;
-                setUserProfile(profile);
-            } catch (error) {
-                console.error('Error fetching user profile:', error);
-                setLoading(false);
-            }
-        };
-
-        getUserProfile();
-    }, []);
+    const { userProfile, loading: profileLoading, error: profileError } = useUserProfile();
 
     useEffect(() => {
         if (userProfile && userProfile.id) {
@@ -50,45 +23,18 @@ const Orders = () => {
         try {
             setLoading(true);
 
-            console.log('Fetching orders for user ID:', userProfile.id);
+            const result = await getUserOrders(userProfile.id);
 
-            // Fetch orders with their order items and variation details
-            const { data: ordersData, error: ordersError } = await supabase
-                .from('orders')
-                .select(`
-                    *,
-                    order_items (
-                        *,
-                        products (
-                            id,
-                            name,
-                            product_images,
-                            category
-                        ),
-                        product_variations (
-                            id,
-                            color,
-                            size,
-                            sku
-                        )
-                    )
-                `)
-                .eq('user_id', userProfile.id)
-                .order('created_at', { ascending: false });
-
-            if (ordersError) {
-                console.error('Error fetching orders:', ordersError);
-                throw ordersError;
+            if (!result.success) {
+                console.error('Error fetching orders:', result.error);
+                throw new Error(result.error);
             }
 
-            console.log('Raw orders data:', ordersData);
-
-            // Transform the data to match the component's expected format
-            const transformedOrders = ordersData.map(order => ({
+            const transformedOrders = result.orders.map(order => ({
                 id: `ORD-${order.id.toString().padStart(3, '0')}`,
                 databaseId: order.id,
                 date: order.created_at,
-                status: mapOrderStatus(order.status, order.payment_completion),
+                status: mapOrderStatus(order.status),
                 total: parseFloat(order.total_amount),
                 items: order.order_items.map(item => ({
                     id: item.id,
@@ -99,7 +45,6 @@ const Orders = () => {
                     quantity: item.quantity,
                     color: item.color,
                     size: item.size,
-                    sku: item.product_sku,
                     product: item.products,
                     variation: item.product_variations
                 })),
@@ -113,11 +58,11 @@ const Orders = () => {
                     phone: order.phone_number || userProfile?.phone || "+254712345678"
                 },
                 payment: {
-                    method: "mpesa", // Default to M-Pesa since no credit cards
-                    phone: order.phone_number, // Use the phone number from orders table
+                    method: "mpesa",
+                    phone: order.phone_number,
                     transactionId: `TXN-${order.id.toString().padStart(6, '0')}`,
                     amount: parseFloat(order.total_amount),
-                    status: order.payment_completion ? "completed" : "pending"
+                    status: order.status === 'pending' ? 'pending' : 'completed'
                 },
                 shipping: {
                     method: "standard",
@@ -137,20 +82,13 @@ const Orders = () => {
     };
 
     // Map database status to component status
-    const mapOrderStatus = (dbStatus, paymentCompletion) => {
-        // If payment is not completed, show as processing (payment pending)
-        if (!paymentCompletion) return 'processing';
-
+    const mapOrderStatus = (dbStatus) => {
         switch (dbStatus?.toLowerCase()) {
             case 'pending':
                 return 'processing';
-            case 'confirmed':
-                return 'processing';
-            case 'shipped':
-                return 'shipped';
-            case 'delivered':
-                return 'delivered';
-            case 'cancelled':
+            case 'completed':
+                return 'completed';
+            case 'failed':
                 return 'cancelled';
             default:
                 return 'processing';
@@ -165,31 +103,14 @@ const Orders = () => {
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'delivered':
-                return <CheckCircle className="status-icon delivered" />;
-            case 'shipped':
-                return <Truck className="status-icon shipped" />;
+            case 'completed':
+                return <CheckCircle className="status-icon completed" />;
             case 'processing':
                 return <Package className="status-icon processing" />;
             case 'cancelled':
                 return <XCircle className="status-icon cancelled" />;
             default:
                 return <Clock className="status-icon processing" />;
-        }
-    };
-
-    const getStatusText = (status) => {
-        switch (status) {
-            case 'delivered':
-                return 'Delivered';
-            case 'shipped':
-                return 'Shipped';
-            case 'processing':
-                return 'Processing';
-            case 'cancelled':
-                return 'Cancelled';
-            default:
-                return 'Processing';
         }
     };
 
@@ -200,7 +121,7 @@ const Orders = () => {
             case 'cash_on_delivery':
                 return 'Cash on Delivery';
             default:
-                return 'M-Pesa'; // Default to M-Pesa
+                return 'M-Pesa';
         }
     };
 
@@ -218,14 +139,6 @@ const Orders = () => {
         });
     };
 
-    // Helper function to get product image
-    const getProductImage = (item) => {
-        if (item.product?.product_images && item.product.product_images.length > 0) {
-            return item.product.product_images[0];
-        }
-        return '/placeholder-product.jpg';
-    };
-
     // Helper function to get variation display text
     const getVariationDisplay = (item) => {
         if (item.color && item.size) {
@@ -240,7 +153,7 @@ const Orders = () => {
     // Filter orders based on active tab
     const filteredOrders = orders.filter(order => {
         if (activeTab === 'completed') {
-            return order.status === 'delivered' || order.status === 'cancelled';
+            return order.status === 'completed' || order.status === 'cancelled';
         } else if (activeTab === 'pending') {
             return order.status === 'processing' || order.status === 'shipped';
         }
@@ -248,19 +161,37 @@ const Orders = () => {
     });
 
     const completedOrdersCount = orders.filter(order =>
-        order.status === 'delivered' || order.status === 'cancelled'
+        order.status === 'completed' || order.status === 'cancelled'
     ).length;
 
     const pendingOrdersCount = orders.filter(order =>
         order.status === 'processing' || order.status === 'shipped'
     ).length;
 
-    if (loading) {
+    // Show loading state for profile loading
+    if (profileLoading) {
         return (
             <div className="orders-container">
                 <div className="orders-loading">
                     <div className="loading-spinner"></div>
-                    <p>Loading your orders...</p>
+                    <p>Loading your profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show profile error
+    if (profileError) {
+        return (
+            <div className="orders-container">
+                <div className="orders-error">
+                    <p>Error loading profile: {profileError}</p>
+                    <button
+                        className="retry-btn"
+                        onClick={() => window.location.reload()}
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -293,6 +224,31 @@ const Orders = () => {
                     >
                         Log In
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state for orders
+    if (loading) {
+        return (
+            <div className="orders-container">
+                <div className="orders-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="orders-title-section">
+                        <Package className="orders-icon" />
+                        <h1 className="orders-title">My Orders</h1>
+                    </div>
+                </div>
+                <div className="orders-loading">
+                    <div className="loading-spinner"></div>
+                    <p>Loading your orders...</p>
                 </div>
             </div>
         );
@@ -373,7 +329,7 @@ const Orders = () => {
                                         <div className="order-status">
                                             {getStatusIcon(order.status)}
                                             <span className={`status-text ${order.status}`}>
-                                                {getStatusText(order.status)}
+                                                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                             </span>
                                         </div>
                                     </div>
@@ -430,22 +386,22 @@ const Orders = () => {
                                 <div className="detail-section">
                                     <h3>Order Summary</h3>
                                     <div className="detail-grid">
-                                        <div className="detail-item">
+                                        <div className="Detail-item">
                                             <span>Order ID:</span>
                                             <span>{selectedOrder.id}</span>
                                         </div>
-                                        <div className="detail-item">
+                                        <div className="Detail-item">
                                             <span>Order Date:</span>
                                             <span>{formatDate(selectedOrder.date)}</span>
                                         </div>
-                                        <div className="detail-item">
+                                        <div className="Detail-item">
                                             <span>Status:</span>
                                             <span className={`status-badge ${selectedOrder.status}`}>
                                                 {getStatusIcon(selectedOrder.status)}
-                                                {getStatusText(selectedOrder.status)}
+                                                {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
                                             </span>
                                         </div>
-                                        <div className="detail-item">
+                                        <div className="Detail-item">
                                             <span>Payment:</span>
                                             <span className={`payment-status ${selectedOrder.payment.status}`}>
                                                 {selectedOrder.payment.status}
@@ -465,11 +421,6 @@ const Orders = () => {
                                                     {getVariationDisplay(item) !== 'Standard' && (
                                                         <div className="item-variation">
                                                             Variation: <strong>{getVariationDisplay(item)}</strong>
-                                                        </div>
-                                                    )}
-                                                    {item.sku && (
-                                                        <div className="item-sku">
-                                                            SKU: {item.sku}
                                                         </div>
                                                     )}
                                                     <div className="item-price">

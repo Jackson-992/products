@@ -8,7 +8,7 @@ import {
 } from '@/services/CommonServices/WishlistSerices.ts';
 import './WishList.css';
 import { supabase } from "@/services/supabase.ts";
-import { useToast } from '@/components/ui/use-toast'; // Import your toast hook
+import { useToast } from '@/components/ui/use-toast';
 
 const WishList = () => {
     const navigate = useNavigate();
@@ -16,13 +16,12 @@ const WishList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
-    const { toast } = useToast(); // Initialize toast
+    const { toast } = useToast();
 
     // Get user profile with integer ID
     useEffect(() => {
         const getUserProfile = async () => {
             try {
-                // First get the auth user
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) {
                     setLoading(false);
@@ -30,7 +29,6 @@ const WishList = () => {
                     return;
                 }
 
-                // Then get the user profile with integer ID
                 const { data: profile, error } = await supabase
                     .from('user_profiles')
                     .select('*')
@@ -60,7 +58,7 @@ const WishList = () => {
         if (userProfile && userProfile.id) {
             loadWishlistItems();
         }
-    }, [userProfile]); // Only run when userProfile changes
+    }, [userProfile]);
 
     const loadWishlistItems = async () => {
         try {
@@ -76,7 +74,14 @@ const WishList = () => {
             const result = await fetchWishListItems(userProfile.id);
 
             if (result.success) {
-                // First transform basic product data
+                // If no items, set empty array and return immediately
+                if (!result.data || result.data.length === 0) {
+                    setWishlistItems([]);
+                    setLoading(false);
+                    return;
+                }
+
+                // Transform basic product data
                 const itemsWithBasicData = result.data.map(item => ({
                     wishlist_item_id: item.wishlist_item_id,
                     id: item.product_id,
@@ -86,21 +91,23 @@ const WishList = () => {
                     image: item.products?.product_images?.[0] || '/api/placeholder/300/300',
                     inStock: (item.products?.stock_number || 0) > 0,
                     category: item.products?.category || 'Uncategorized',
-                    // Temporary placeholder values
-                    rating: 0,
+                    rating: 0, // Default values
                     reviews: 0
                 }));
 
-                // Fetch reviews for all products
+                // Set items immediately without reviews to prevent empty state flash
+                setWishlistItems(itemsWithBasicData);
+
+                // Then fetch reviews and update with ratings
                 const productsWithReviews = await Promise.all(
                     itemsWithBasicData.map(async (item) => {
                         try {
                             const reviewsResult = await supabase
                                 .from('reviews')
                                 .select('rating')
-                          .eq('product_id', item.id);
+                                .eq('product_id', item.id);
 
-                    if (reviewsResult.data && reviewsResult.data.length > 0) {
+                            if (reviewsResult.data && reviewsResult.data.length > 0) {
                                 const averageRating = reviewsResult.data.reduce((sum, review) => sum + review.rating, 0) / reviewsResult.data.length;
                                 return {
                                     ...item,
@@ -116,6 +123,7 @@ const WishList = () => {
                     })
                 );
 
+                // Update with reviews data
                 setWishlistItems(productsWithReviews);
             } else {
                 setError(result.error);
@@ -127,6 +135,7 @@ const WishList = () => {
             setLoading(false);
         }
     };
+
     const removeFromWishlist = async (productId) => {
         try {
             if (!userProfile?.id) {
@@ -137,6 +146,10 @@ const WishList = () => {
             const result = await removeFromWishList(userProfile.id, productId);
             if (result.success) {
                 setWishlistItems(prev => prev.filter(item => item.id !== productId));
+                toast({
+                    title: "Item removed",
+                    description: "Item has been removed from your wishlist",
+                });
             } else {
                 setError('Failed to remove item from wishlist');
             }
@@ -157,6 +170,10 @@ const WishList = () => {
                 const result = await clearWishList(userProfile.id);
                 if (result.success) {
                     setWishlistItems([]);
+                    toast({
+                        title: "Wishlist cleared",
+                        description: "All items have been removed from your wishlist",
+                    });
                 } else {
                     setError('Failed to clear wishlist');
                 }
@@ -172,8 +189,8 @@ const WishList = () => {
         return Math.round(((originalPrice - price) / originalPrice) * 100);
     };
 
-    // Show loading state only when initially loading and userProfile is not yet set
-    if (loading && !userProfile) {
+    // Show loading state
+    if (loading) {
         return (
             <div className="wishlist-container">
                 <div className="wishlist-loading">

@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Trash2, ArrowLeft, Plus, Minus, Heart, Truck, Shield, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-    fetchCartItems,
-    removeFromCart,
-    clearCart,
-    updateCartQuantity
-} from '@/services/CommonServices/CartServices.ts';
-import { supabase } from '@/services/supabase';
+import { fetchCartItems, removeFromCart, clearCart, updateCartQuantity } from '@/services/CommonServices/CartServices.ts';
+import useUserProfile from '@/hooks/userProfile';
 import './cart.css';
 import { addToWishList } from "@/services/CommonServices/WishlistSerices.ts";
 import { useToast } from '@/components/ui/use-toast';
@@ -18,42 +13,11 @@ const Cart = () => {
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [userProfile, setUserProfile] = useState(null);
     const { toast } = useToast();
     const [showBuyForm, setShowBuyForm] = useState(false);
 
-    // Get user profile with integer ID
-    useEffect(() => {
-        const getUserProfile = async () => {
-            try {
-                // First get the auth user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    setLoading(false);
-                    return;
-                }
-
-                // Then get the user profile with integer ID
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', user.id)
-                    .single();
-
-                if (error) {
-                    console.error('Error fetching user profile:', error);
-                    setLoading(false);
-                    return;
-                }
-                setUserProfile(profile);
-            } catch (error) {
-                console.error('Error fetching user profile:', error);
-                setLoading(false);
-            }
-        };
-
-        getUserProfile();
-    }, []);
+    // Use the custom hook for user profile
+    const { userProfile, loading: profileLoading, error: profileError } = useUserProfile();
 
     // Fetch cart items from Supabase
     const loadCartItems = async () => {
@@ -271,17 +235,36 @@ const Cart = () => {
         return variations.length > 0 ? variations.join(' • ') : null;
     };
 
-    if (loading) {
+    // Show loading state for profile loading
+    if (profileLoading) {
         return (
             <div className="cart-container">
                 <div className="cart-loading">
                     <div className="loading-spinner"></div>
-                    <p>Loading your cart...</p>
+                    <p>Loading your profile...</p>
                 </div>
             </div>
         );
     }
 
+    // Show profile error
+    if (profileError) {
+        return (
+            <div className="cart-container">
+                <div className="cart-error">
+                    <p>Error loading profile: {profileError}</p>
+                    <button
+                        className="retry-btn"
+                        onClick={() => window.location.reload()}
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show login prompt if no user profile
     if (!userProfile) {
         return (
             <div className="cart-container">
@@ -295,6 +278,31 @@ const Cart = () => {
                     >
                         Login to Continue
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state for cart items
+    if (loading) {
+        return (
+            <div className="cart-container">
+                <div className="cart-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="cart-title-section">
+                        <ShoppingCart className="cart-icon" />
+                        <h1 className="cart-title">Shopping Cart</h1>
+                    </div>
+                </div>
+                <div className="cart-loading">
+                    <div className="loading-spinner"></div>
+                    <p>Loading your cart...</p>
                 </div>
             </div>
         );

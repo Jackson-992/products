@@ -453,18 +453,18 @@
     gap: 8px;
 }
 
-.detail-item {
+.Detail-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
 }
 
-.detail-item span:first-child {
+.Detail-item span:first-child {
     color: #666;
 }
 
-.detail-item span:last-child {
+.Detail-item span:last-child {
     font-weight: 500;
     color: #333;
 }
