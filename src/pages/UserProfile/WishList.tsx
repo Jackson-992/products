@@ -9,49 +9,17 @@ import {
 import './WishList.css';
 import { supabase } from "@/services/supabase.ts";
 import { useToast } from '@/components/ui/use-toast';
+import useUserProfile from '@/hooks/userProfile';
 
 const WishList = () => {
     const navigate = useNavigate();
     const [wishlistItems, setWishlistItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [userProfile, setUserProfile] = useState(null);
     const { toast } = useToast();
 
-    // Get user profile with integer ID
-    useEffect(() => {
-        const getUserProfile = async () => {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    setLoading(false);
-                    setError('Please log in to view your wishlist');
-                    return;
-                }
-
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', user.id)
-                    .single();
-
-                if (error) {
-                    console.error('Error fetching user profile:', error);
-                    setError('Failed to load user profile');
-                    setLoading(false);
-                    return;
-                }
-
-                setUserProfile(profile);
-            } catch (error) {
-                console.error('Error fetching user profile:', error);
-                setError('Failed to load user profile');
-                setLoading(false);
-            }
-        };
-
-        getUserProfile();
-    }, []);
+    // Use the custom hook for user profile
+    const { userProfile, loading: profileLoading, error: profileError } = useUserProfile();
 
     // Load wishlist items when userProfile is available
     useEffect(() => {
@@ -189,10 +157,84 @@ const WishList = () => {
         return Math.round(((originalPrice - price) / originalPrice) * 100);
     };
 
-    // Show loading state
+    // Show loading state for profile
+    if (profileLoading) {
+        return (
+            <div className="wishlist-container">
+                <div className="wishlist-loading">
+                    <div className="loading-spinner"></div>
+                    <p>Loading your profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show profile error
+    if (profileError) {
+        return (
+            <div className="wishlist-container">
+                <div className="wishlist-error">
+                    <p>Error loading profile: {profileError}</p>
+                    <button
+                        className="retry-btn"
+                        onClick={() => window.location.reload()}
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show login prompt if no user profile
+    if (!userProfile) {
+        return (
+            <div className="wishlist-container">
+                <div className="wishlist-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="wishlist-title-section">
+                        <Heart className="wishlist-icon" />
+                        <h1 className="wishlist-title">My Wishlist</h1>
+                    </div>
+                </div>
+                <div className="empty-wishlist">
+                    <Heart className="empty-heart" />
+                    <h2>Please Log In</h2>
+                    <p>You need to be logged in to view your wishlist</p>
+                    <button
+                        className="continue-shopping-btn"
+                        onClick={() => navigate('/login')}
+                    >
+                        Log In
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state for wishlist items
     if (loading) {
         return (
             <div className="wishlist-container">
+                <div className="wishlist-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="wishlist-title-section">
+                        <Heart className="wishlist-icon" />
+                        <h1 className="wishlist-title">My Wishlist</h1>
+                    </div>
+                </div>
                 <div className="wishlist-loading">
                     <div className="loading-spinner"></div>
                     <p>Loading your wishlist...</p>
@@ -204,6 +246,19 @@ const WishList = () => {
     if (error) {
         return (
             <div className="wishlist-container">
+                <div className="wishlist-header">
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                    >
+                        <ArrowLeft size={20} />
+                        Back
+                    </button>
+                    <div className="wishlist-title-section">
+                        <Heart className="wishlist-icon" />
+                        <h1 className="wishlist-title">My Wishlist</h1>
+                    </div>
+                </div>
                 <div className="wishlist-error">
                     <p>Error: {error}</p>
                     <button

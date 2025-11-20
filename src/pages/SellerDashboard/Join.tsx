@@ -3,7 +3,8 @@ import React, {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
 import { useAffiliateStatus } from "@/hooks/checkAffiliateStatus.ts";
 import { createPayment } from "@/services/CommonServices/PaymentServices.ts";
-import { supabase } from '@/services/supabase';
+import useUserProfile from '@/hooks/userProfile';
+import useAffiliateCode from '@/hooks/validateAffiliateCode.ts';
 import { useToast } from '@/components/ui/use-toast';
 import {Button} from "@/components/ui/button.tsx";
 
@@ -16,56 +17,11 @@ const Join = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [paymentInitiated, setPaymentInitiated] = useState(false);
     const [error, setError] = useState("");
-    const [userProfile, setUserProfile] = useState<any>(null);
     const { toast } = useToast();
 
     const { loading: checkingStatus } = useAffiliateStatus(true);
-
-    useEffect(() => {
-        getUserProfile();
-    }, []);
-
-    const getUserProfile = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('auth_id', session.user.id)
-                    .single();
-
-                if (!error && profile) {
-                    setUserProfile(profile);
-                } else {
-                    console.error('Error fetching user profile:', error);
-                    setUserProfile(null);
-                }
-            }
-        } catch (error) {
-            console.error('Error getting user profile:', error);
-            setUserProfile(null);
-        }
-    };
-
-    const getCurrentUserId = (): number | null => {
-        return userProfile?.id || null;
-    };
-
-    const validateAffiliateCode = async (code: string): Promise<boolean> => {
-        try {
-            const { data, error } = await supabase
-                .from('affiliate_profiles')
-                .select('affiliate_code')
-                .eq('affiliate_code', code)
-                .single();
-
-            return !error && data !== null;
-        } catch (error) {
-            console.error('Error validating affiliate code:', error);
-            return false;
-        }
-    };
+    const { userProfile, loading: profileLoading } = useUserProfile();
+    const { validateAffiliateCode, validating } = useAffiliateCode();
 
     const handleCodeSubmit = (e) => {
         e.preventDefault();
@@ -94,11 +50,11 @@ const Join = () => {
 
         // Validate affiliate code before creating payment
         if (hasCode && affiliateCode.trim()) {
-            const isValidCode = await validateAffiliateCode(affiliateCode.trim());
-            if (!isValidCode) {
+            const validationResult = await validateAffiliateCode(affiliateCode.trim());
+            if (!validationResult.isValid) {
                 toast({
                     title: "Incorrect Affiliate code",
-                    description: "The affiliate code you entered does not exist. Please confirm with your Referer",
+                    description: validationResult.error,
                     variant: "destructive",
                 });
                 return;
@@ -108,10 +64,12 @@ const Join = () => {
         setIsLoading(true);
 
         try {
-            const userId = await getCurrentUserId();
+            if (!userProfile) {
+                throw new Error('User not authenticated');
+            }
 
             const paymentResult = await createPayment({
-                user_id: userId,
+                user_id: userProfile.id,
                 amount: 500,
                 phone_number: phoneNumber,
                 referer_code: hasCode && affiliateCode.trim() ? affiliateCode.trim() : null,
@@ -137,8 +95,8 @@ const Join = () => {
 
             toast({
                 title: "Payment Failure",
-                description: "Payment failed, please try again",
-                variant: "default",
+                description: error.message || "Payment failed, please try again",
+                variant: "destructive",
             });
         } finally {
             setIsLoading(false);
@@ -154,13 +112,34 @@ const Join = () => {
         window.location.reload();
     };
 
-    if (checkingStatus) {
+    // Show loading states
+    if (checkingStatus || profileLoading) {
         return (
             <div className="join-container">
                 <div className="join-card">
                     <div className="Loading-spinner">
                         <div className="Spinner"></div>
                         <p>Checking your status...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show login prompt if no user profile
+    if (!userProfile) {
+        return (
+            <div className="join-container">
+                <div className="join-card">
+                    <div className="error-message">
+                        <h2>Authentication Required</h2>
+                        <p>Please log in to become an affiliate</p>
+                        <Button
+                            onClick={() => navigate('/login')}
+                            className="continue-btn"
+                        >
+                            Log In
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -205,8 +184,11 @@ const Join = () => {
                                 value={affiliateCode}
                                 onChange={(e) => setAffiliateCode(e.target.value)}
                                 placeholder="Enter affiliate code if you have one"
-                                disabled={!hasCode}
+                                disabled={!hasCode || validating}
                             />
+                            {validating && (
+                                <small className="validating-text">Validating code...</small>
+                            )}
                         </div>
 
                         <div className="code-option">
@@ -221,8 +203,12 @@ const Join = () => {
                             </label>
                         </div>
 
-                        <button type="submit" className="continue-btn">
-                            Continue
+                        <button
+                            type="submit"
+                            className="continue-btn"
+                            disabled={validating}
+                        >
+                            {validating ? 'Validating...' : 'Continue'}
                         </button>
 
                         {!hasCode && (
