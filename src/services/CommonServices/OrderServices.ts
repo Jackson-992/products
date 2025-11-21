@@ -1,26 +1,108 @@
 import { supabase } from '../supabase.ts';
 
-export const createOrder = async (orderData) => {
+// Server-side price calculation
+const calculateServerSidePrice = async (productId: number, variationId: number) => {
     try {
-        const { user_id, phone_number, items } = orderData;
+        // Get base product price
+        const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('price, originalprice')
+            .eq('id', productId)
+            .single();
 
-        // Calculate total amount from items
-        const total_amount = items.reduce((total, item) => {
-            return total + (item.price * item.quantity);
-        }, 0);
+        if (productError) throw productError;
 
-        // 1. Create the main order record
+        // Get variation price adjustment
+        const { data: variation, error: variationError } = await supabase
+            .from('product_variations')
+            .select('price_adjustment')
+            .eq('id', variationId)
+            .single();
+
+        if (variationError) throw variationError;
+
+        // Calculate final price on server
+        const basePrice = product.price || product.originalprice;
+        const finalPrice = basePrice + (variation.price_adjustment || 0);
+
+        return finalPrice;
+    } catch (error) {
+        console.error('Error calculating server-side price:', error);
+        throw new Error('Failed to calculate product price');
+    }
+};
+
+// Secure order creation
+export const createSecureOrder = async (orderData: {
+    user_id: string;
+    phone_number: string;
+    items: Array<{
+        productId: number;
+        variationId: number;
+        quantity: number;
+        color?: string;
+        size?: string;
+        sku?: string;
+        name?: string;
+    }>;
+    affiliate_code?: string;
+}) => {
+    try {
+        const { user_id, phone_number, items, affiliate_code } = orderData;
+
+        // 1. Calculate ALL prices on server
+        const serverPrices = await Promise.all(
+            items.map(async (item) => ({
+                ...item,
+                price: await calculateServerSidePrice(item.productId, item.variationId)
+            }))
+        );
+
+        // 2. Calculate total using SERVER prices
+        const total_amount = serverPrices.reduce((sum, item) =>
+            sum + (item.price * item.quantity), 0
+        );
+
+        // 3. Check stock availability and get current quantities
+        const stockUpdates = [];
+        for (const item of items) {
+            const { data: variation, error } = await supabase
+                .from('product_variations')
+                .select('quantity')
+                .eq('id', item.variationId)
+                .single();
+
+            if (error || !variation) {
+                return {
+                    success: false,
+                    error: `Variation not found for product ${item.productId}`
+                };
+            }
+
+            if (variation.quantity < item.quantity) {
+                return {
+                    success: false,
+                    error: `Insufficient stock for product ${item.productId}. Available: ${variation.quantity}, Requested: ${item.quantity}`
+                };
+            }
+
+            // Store the new quantity for update
+            stockUpdates.push({
+                variationId: item.variationId,
+                newQuantity: variation.quantity - item.quantity
+            });
+        }
+
+        // 4. Create order
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .insert([
-                {
-                    user_id: user_id,
-                    total_amount: total_amount,
-                    status: 'pending',
-                    payment_completion: false,
-                    phone_number: phone_number
-                }
-            ])
+            .insert([{
+                user_id: user_id,
+                total_amount: total_amount,
+                status: 'pending',
+                payment_completion: false,
+                phone_number: phone_number
+            }])
             .select()
             .single();
 
@@ -29,72 +111,123 @@ export const createOrder = async (orderData) => {
             throw new Error(`Failed to create order: ${orderError.message}`);
         }
 
-        // 2. Create order items with variation data
-        const orderItemsData = items.map(item => ({
+        // 5. Create order items with SERVER prices
+        const orderItemsData = serverPrices.map(item => ({
             order_id: order.id,
             product_id: item.productId,
-            variation_id: item.variationId,      // NEW
-            color: item.color,                   // NEW
-            size: item.size,                     // NEW
-            product_sku: item.sku,               // NEW
+            variation_id: item.variationId,
+            color: item.color,
+            size: item.size,
+            product_sku: item.sku,
             quantity: item.quantity,
-            price: item.price,
+            price: item.price, // SERVER-calculated price
             product_name: item.name,
-            affiliate_code: item.affiliate_id || null,
-            commission_earned: item.commission_earned || 0
+            affiliate_code: affiliate_code || null,
+            commission_earned: 0
         }));
 
         const { data: orderItems, error: orderItemsError } = await supabase
             .from('order_items')
             .insert(orderItemsData)
-            .select(`
-                *,
-                products (
-                    id,
-                    name,
-                    product_images,
-                    category
-                ),
-                product_variations (
-                    id,
-                    color,
-                    size,
-                    sku,
-                    quantity
-                )
-            `);
+            .select();
 
         if (orderItemsError) {
             console.error('Error creating order items:', orderItemsError);
             throw new Error(`Failed to create order items: ${orderItemsError.message}`);
         }
 
-        // 3. Update product variation quantities (reduce stock)
-        for (const item of items) {
-            if (item.variationId) {
-                const { error: updateError } = await supabase
-                    .from('product_variations')
-                    .update({
-                        quantity: item.variationStock - item.quantity
-                    })
-                    .eq('id', item.variationId);
+        // 6. Update stock quantities (FIXED - no raw() method)
+        for (const stockUpdate of stockUpdates) {
+            const { error: updateError } = await supabase
+                .from('product_variations')
+                .update({
+                    quantity: stockUpdate.newQuantity
+                })
+                .eq('id', stockUpdate.variationId);
 
-                if (updateError) {
-                    console.error('Error updating variation stock:', updateError);
-                    // Don't throw here - we don't want to fail the entire order
-                    // due to stock update issues
-                }
+            if (updateError) {
+                console.error('Error updating stock:', updateError);
+                // Don't fail the entire order for stock update issues
             }
         }
 
         return {
             success: true,
             order: order,
-            orderItems: orderItems
+            orderItems: orderItems,
+            serverTotal: total_amount
         };
 
     } catch (error) {
-        console.error('Error in createOrder:', error);
+        console.error('Error in createSecureOrder:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+};
+
+// Enhanced availability check with price validation
+export const checkVariationAvailabilityWithPrices = async (items) => {
+    try {
+        const availabilityResults = [];
+
+        for (const item of items) {
+            if (item.variationId) {
+                // Get current variation data
+                const { data: variation, error } = await supabase
+                    .from('product_variations')
+                    .select('quantity, color, size, sku, price_adjustment')
+                    .eq('id', item.variationId)
+                    .single();
+
+                if (error) {
+                    availabilityResults.push({
+                        productId: item.productId,
+                        variationId: item.variationId,
+                        available: false,
+                        error: 'Variation not found'
+                    });
+                    continue;
+                }
+
+                // Get product base price
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('price')
+                    .eq('id', item.productId)
+                    .single();
+
+                // Calculate server-side price
+                const basePrice = product?.price || 0;
+                const serverPrice = basePrice + (variation.price_adjustment || 0);
+                const priceValid = Math.abs(serverPrice - item.price) <= 1.00;
+
+                availabilityResults.push({
+                    productId: item.productId,
+                    variationId: item.variationId,
+                    available: variation.quantity >= item.quantity,
+                    priceValid: priceValid,
+                    currentStock: variation.quantity,
+                    requestedQuantity: item.quantity,
+                    clientPrice: item.price,
+                    serverPrice: serverPrice,
+                    color: variation.color,
+                    size: variation.size,
+                    sku: variation.sku
+                });
+            }
+        }
+
+        const allAvailable = availabilityResults.every(result => result.available && result.priceValid);
+
+        return {
+            success: true,
+            allAvailable: allAvailable,
+            availability: availabilityResults
+        };
+    } catch (error) {
+        console.error('Error checking variation availability:', error);
         return {
             success: false,
             error: error.message
@@ -175,254 +308,6 @@ export const getOrderById = async (orderId) => {
         };
     } catch (error) {
         console.error('Error fetching order:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-export const updateOrderStatus = async (orderId, status) => {
-    try {
-        const { data: order, error } = await supabase
-            .from('orders')
-            .update({
-                status: status,
-                updated_at: new Date()
-            })
-            .eq('id', orderId)
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return {
-            success: true,
-            order: order
-        };
-    } catch (error) {
-        console.error('Error updating order status:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-export const completeOrderPayment = async (orderId) => {
-    try {
-        const { data: order, error } = await supabase
-            .from('orders')
-            .update({
-                payment_completion: true,
-                status: 'confirmed',
-                updated_at: new Date()
-            })
-            .eq('id', orderId)
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return {
-            success: true,
-            order: order
-        };
-    } catch (error) {
-        console.error('Error completing order payment:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-export const deleteOrder = async (orderId) => {
-    try {
-        // First get order items to restore variation quantities
-        const { data: orderItems, error: itemsFetchError } = await supabase
-            .from('order_items')
-            .select('variation_id, quantity')
-            .eq('order_id', orderId);
-
-        if (itemsFetchError) throw itemsFetchError;
-
-        // Restore variation quantities
-        for (const item of orderItems || []) {
-            if (item.variation_id) {
-                await supabase.rpc('increment_variation_quantity', {
-                    variation_id: item.variation_id,
-                    increment_amount: item.quantity
-                });
-            }
-        }
-
-        // First delete order items (due to foreign key constraint)
-        const { error: itemsError } = await supabase
-            .from('order_items')
-            .delete()
-            .eq('order_id', orderId);
-
-        if (itemsError) throw itemsError;
-
-        // Then delete the order
-        const { error: orderError } = await supabase
-            .from('orders')
-            .delete()
-            .eq('id', orderId);
-
-        if (orderError) throw orderError;
-
-        return {
-            success: true,
-            message: 'Order deleted successfully'
-        };
-    } catch (error) {
-        console.error('Error deleting order:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-export const getAllOrders = async (page = 1, limit = 10) => {
-    try {
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
-        const { data: orders, error, count } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                order_items (
-                    *,
-                    products (
-                        id,
-                        name,
-                        product_images,
-                        category
-                    ),
-                    product_variations (
-                        id,
-                        color,
-                        size,
-                        sku
-                    )
-                )
-            `, { count: 'exact' })
-            .order('created_at', { ascending: false })
-            .range(from, to);
-
-        if (error) throw error;
-
-        return {
-            success: true,
-            orders: orders,
-            totalCount: count,
-            currentPage: page,
-            totalPages: Math.ceil(count / limit)
-        };
-    } catch (error) {
-        console.error('Error fetching all orders:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-// NEW: Get order items with full product and variation details
-export const getOrderItemsWithDetails = async (orderId) => {
-    try {
-        const { data: orderItems, error } = await supabase
-            .from('order_items')
-            .select(`
-                *,
-                products (
-                    id,
-                    name,
-                    product_images,
-                    category,
-                    price as base_price
-                ),
-                product_variations (
-                    id,
-                    color,
-                    size,
-                    sku,
-                    price_adjustment
-                )
-            `)
-            .eq('order_id', orderId);
-
-        if (error) throw error;
-
-        return {
-            success: true,
-            orderItems: orderItems
-        };
-    } catch (error) {
-        console.error('Error fetching order items:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
-
-// NEW: Check variation availability before order creation
-export const checkVariationAvailability = async (items) => {
-    try {
-        const availabilityResults = [];
-
-        for (const item of items) {
-            if (item.variationId) {
-                const { data: variation, error } = await supabase
-                    .from('product_variations')
-                    .select('quantity, color, size, sku')
-                    .eq('id', item.variationId)
-                    .single();
-
-                if (error) {
-                    availabilityResults.push({
-                        productId: item.productId,
-                        variationId: item.variationId,
-                        available: false,
-                        error: 'Variation not found'
-                    });
-                    continue;
-                }
-
-                availabilityResults.push({
-                    productId: item.productId,
-                    variationId: item.variationId,
-                    available: variation.quantity >= item.quantity,
-                    currentStock: variation.quantity,
-                    requestedQuantity: item.quantity,
-                    color: variation.color,
-                    size: variation.size,
-                    sku: variation.sku
-                });
-            } else {
-                // Handle products without variations (backward compatibility)
-                availabilityResults.push({
-                    productId: item.productId,
-                    available: true, // Assume available for backward compatibility
-                    note: 'No variation specified'
-                });
-            }
-        }
-
-        const allAvailable = availabilityResults.every(result => result.available);
-
-        return {
-            success: true,
-            allAvailable: allAvailable,
-            availability: availabilityResults
-        };
-    } catch (error) {
-        console.error('Error checking variation availability:', error);
         return {
             success: false,
             error: error.message

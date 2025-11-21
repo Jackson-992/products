@@ -1,4 +1,3 @@
-// Transactions.tsx
 import React, { useState, useEffect } from 'react';
 import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, Copy, Users, ShoppingCart, AlertCircle, DollarSign, UserPlus } from 'lucide-react';
 import { useAffiliateCode } from '@/hooks/checkAffiliateCode.ts';

@@ -70,7 +70,6 @@ const Join = () => {
 
             const paymentResult = await createPayment({
                 user_id: userProfile.id,
-                amount: 500,
                 phone_number: phoneNumber,
                 referer_code: hasCode && affiliateCode.trim() ? affiliateCode.trim() : null,
             });

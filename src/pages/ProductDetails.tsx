@@ -10,7 +10,7 @@ import ReviewForm from './ReviewForm.tsx';
 import './Product-details.css';
 import { getProductDetails, ProductDetails, submitReview } from "@/services/CommonServices/ProductService.ts";
 import { Review } from "@/types/Product.ts";
-import { useAuth } from '@/contexts/AuthContext'; // Import the auth context
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { addToWishList } from "@/services/CommonServices/WishlistSerices.ts";
 import PurchaseForm from "@/pages/PurchaseForm.tsx";

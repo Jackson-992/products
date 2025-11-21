@@ -3,7 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2 } from 'lucide-react';
-import { createOrder, checkVariationAvailability } from '@/services/CommonServices/OrderServices.ts';
+import {
+    checkVariationAvailabilityWithPrices,
+    createSecureOrder
+} from '@/services/CommonServices/OrderServices.ts';
 import { getProductVariations, getProductDetails } from '@/services/CommonServices/CheckOut.ts';
 import './PurchaseForm.css';
 
@@ -247,13 +250,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId,
                         const basePrice = productDetail?.price || item.originalPrice;
                         const finalPrice = basePrice + (selectedVariation.price_adjustment || 0);
 
-                        console.log('Price calculation:', {
-                            basePrice,
-                            adjustment: selectedVariation.price_adjustment,
-                            finalPrice,
-                            previousPrice: item.price
-                        });
-
                         return {
                             ...item,
                             variationId: selectedVariation.id,
@@ -276,69 +272,26 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId,
         e.preventDefault();
 
         if (selectedItems.length === 0) {
-            toast({
-                title: "Error",
-                description: "Please select at least one item to purchase",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Please select items", variant: "destructive" });
             return;
         }
 
         // Check if all items have variations selected
         const itemsWithoutVariations = selectedItems.filter(item => !item.variationId);
         if (itemsWithoutVariations.length > 0) {
-            toast({
-                title: "Error",
-                description: "Please select variations for all products",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Please select variations for all products", variant: "destructive" });
             return;
         }
 
-        if (!phoneNumber.trim()) {
-            toast({
-                title: "Error",
-                description: "Please enter your phone number",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        const phoneRegex = /^[0-9+\-\s()]{10,}$/;
-        if (!phoneRegex.test(phoneNumber)) {
-            toast({
-                title: "Error",
-                description: "Please enter a valid phone number",
-                variant: "destructive",
-            });
+        if (!phoneNumber.trim() || !/^[0-9+\-\s()]{10,}$/.test(phoneNumber)) {
+            toast({ title: "Error", description: "Valid phone number required", variant: "destructive" });
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Check variation availability before creating order
-            const availabilityCheck = await checkVariationAvailability(selectedItems);
-
-            if (!availabilityCheck.success) {
-                throw new Error(availabilityCheck.error);
-            }
-
-            if (!availabilityCheck.allAvailable) {
-                const unavailableItems = availabilityCheck.availability.filter(item => !item.available);
-                const errorMessage = unavailableItems.map(item =>
-                    `${item.color} ${item.size}: Only ${item.currentStock} available`
-                ).join(', ');
-
-                toast({
-                    title: "Insufficient Stock",
-                    description: `Some items are no longer available: ${errorMessage}`,
-                    variant: "destructive",
-                });
-                return;
-            }
-
-            // Prepare order items with variation data and affiliate info
+            // Prepare items WITHOUT prices
             const orderItems = selectedItems.map(item => ({
                 productId: item.productId,
                 variationId: item.variationId!,
@@ -346,34 +299,30 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId,
                 size: item.size!,
                 sku: item.sku!,
                 name: item.name,
-                price: item.price, // This now contains the correct current price
                 quantity: item.quantity,
-                variationStock: item.variationStock!,
-                affiliate_id: affiliateCode, // Include affiliate code
-                commission_earned: 0 // You might want to calculate this based on your commission structure
+                // NO price field - server will calculate
             }));
 
-            // Create order in database
-            const orderResult = await createOrder({
+            // Use secure order service
+            const orderResult = await createSecureOrder({
                 user_id: userId,
                 phone_number: phoneNumber,
                 items: orderItems,
-                affiliate_code: affiliateCode // Include affiliate code at order level too
+                affiliate_code: affiliateCode || null
             });
 
             if (!orderResult.success) {
                 throw new Error(orderResult.error);
             }
 
-            // Show affiliate message if applicable
+            // Success message
             const successMessage = affiliateCode
-                ? `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed through affiliate ${affiliateCode}. We'll contact you on ${phoneNumber}.`
-                : `Your order #${orderResult.order.id} for ${calculateTotalItems()} items has been placed. We'll contact you on ${phoneNumber}.`;
+                ? `Your order #${orderResult.order.id} has been placed through affiliate ${affiliateCode}. We'll contact you on ${phoneNumber}.`
+                : `Your order #${orderResult.order.id} has been placed. We'll contact you on ${phoneNumber}.`;
 
             toast({
                 title: "Order Placed Successfully!",
                 description: successMessage,
-                variant: "default",
             });
 
             onClose();
@@ -388,7 +337,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({ cartItems, onClose, userId,
             setIsSubmitting(false);
         }
     };
-
     const getAvailableVariations = (productId: number) => {
         return productVariations[productId] || [];
     };

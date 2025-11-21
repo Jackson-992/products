@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Star, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/types/Product';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { addToWishList } from '@/services/CommonServices/WishlistSerices.ts';
+import { addToWishList, isInWishList, removeFromWishList } from '@/services/CommonServices/WishlistSerices.ts';
 import AddToCartForm from '@/pages/UserProfile/AddToCartForm';
 import './ProductCard.css';
 
@@ -17,14 +17,40 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { user, userProfile, isLoading } = useAuth(); // Simple hook usage
+    const { userProfile, isLoading } = useAuth();
     const [addingToWishlist, setAddingToWishlist] = useState(false);
     const [showAddToCartForm, setShowAddToCartForm] = useState(false);
+    const [isInWishlist, setIsInWishlist] = useState(false);
+    const [checkingWishlist, setCheckingWishlist] = useState(false);
 
     const mainImage = product.images.length > 0 ? product.images[0] : "/placeholder.png";
 
+    // Check if product is in wishlist when component mounts or user changes
+    useEffect(() => {
+        const checkWishlistStatus = async () => {
+            if (!userProfile || isLoading) {
+                setIsInWishlist(false);
+                return;
+            }
+
+            setCheckingWishlist(true);
+            try {
+                const result = await isInWishList(userProfile.id, product.id);
+                if (result.success) {
+                    setIsInWishlist(result.isInWishlist);
+                }
+            } catch (error) {
+                console.error('Error checking wishlist status:', error);
+                setIsInWishlist(false);
+            } finally {
+                setCheckingWishlist(false);
+            }
+        };
+
+        checkWishlistStatus();
+    }, [userProfile, isLoading, product.id]);
+
     const handleAddToCartClick = () => {
-        // Show loading if still checking auth
         if (isLoading) {
             toast({
                 title: "Please wait",
@@ -64,8 +90,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
         setShowAddToCartForm(true);
     };
 
-    const handleAddToWishlist = async () => {
-        if (isLoading) {
+    const handleWishlistToggle = async () => {
+        if (isLoading || checkingWishlist) {
             toast({
                 title: "Please wait",
                 description: "Checking authentication...",
@@ -77,7 +103,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
         if (!userProfile) {
             toast({
                 title: "Login Required",
-                description: "Please log in to add items to your wishlist",
+                description: "Please log in to manage your wishlist",
                 variant: "destructive",
                 action: (
                     <Button
@@ -94,27 +120,40 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
 
         setAddingToWishlist(true);
         try {
-            const result = await addToWishList(userProfile.id, product.id);
-
-            if (result.success) {
-                toast({
-                    title: "Added to Wishlist!",
-                    description: `${product.name} has been added to your wishlist`,
-                    variant: "default",
-                    duration: 3000,
-                });
+            if (isInWishlist) {
+                // Remove from wishlist
+                const result = await removeFromWishList(userProfile.id, product.id);
+                if (result.success) {
+                    setIsInWishlist(false);
+                    toast({
+                        title: "Removed from Wishlist",
+                        description: `${product.name} has been removed from your wishlist`,
+                        variant: "default",
+                        duration: 3000,
+                    });
+                } else {
+                    throw new Error(result.error);
+                }
             } else {
-                toast({
-                    title: "Failed to Add to Wishlist",
-                    description: "Please try again",
-                    variant: "destructive",
-                });
+                // Add to wishlist
+                const result = await addToWishList(userProfile.id, product.id);
+                if (result.success) {
+                    setIsInWishlist(true);
+                    toast({
+                        title: "Added to Wishlist!",
+                        description: `${product.name} has been added to your wishlist`,
+                        variant: "default",
+                        duration: 3000,
+                    });
+                } else {
+                    throw new Error(result.error);
+                }
             }
         } catch (error) {
-            console.error('Error adding to wishlist:', error);
+            console.error('Error toggling wishlist:', error);
             toast({
                 title: "Error",
-                description: "An error occurred while adding to wishlist",
+                description: "An error occurred while updating wishlist",
                 variant: "destructive",
             });
         } finally {
@@ -148,15 +187,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                     </Link>
 
                     <button
-                        className="wishlist-Btn"
-                        onClick={handleAddToWishlist}
-                        disabled={addingToWishlist || isLoading}
-                        aria-label="Add to wishlist"
+                        className={`wishlist-Btn ${isInWishlist ? 'in-wishlist' : ''}`}
+                        onClick={handleWishlistToggle}
+                        disabled={addingToWishlist || isLoading || checkingWishlist}
+                        aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
                     >
-                        {addingToWishlist ? (
+                        {addingToWishlist || checkingWishlist ? (
                             <div className="spinner-small"></div>
                         ) : (
-                            <Heart className="icon-sm" />
+                            <Heart
+                                className={`icon-sm ${isInWishlist ? 'heart-filled' : 'heart-empty'}`}
+                                fill={isInWishlist ? 'currentColor' : 'none'}
+                            />
                         )}
                     </button>
 
@@ -170,6 +212,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onCartUpdate }) => {
                 </div>
 
                 <div className="product-content">
+                    <div className="Product-category">{product.category}</div>
                     <Link to={`/product/${product.id}`} className="product-title-link">
                         <p className="product-Title">{product.name}</p>
                     </Link>

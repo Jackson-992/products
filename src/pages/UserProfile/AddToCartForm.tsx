@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { ShoppingCart, Check } from 'lucide-react';
-import { getProductVariations, ProductVariation } from '@/services/AdminServices/adminProductService.ts';
-import { addToCart } from '@/services/CommonServices/CartServices.ts';
+import React, {useState, useEffect} from 'react';
+import {Button} from '@/components/ui/button';
+import {useToast} from '@/components/ui/use-toast';
+import {ShoppingCart, Check} from 'lucide-react';
+import {getProductVariations, ProductVariation} from '@/services/AdminServices/adminProductService.ts';
+import {addToCart} from '@/services/CommonServices/CartServices.ts';
 import useUserProfile from '@/hooks/userProfile';
 import './AddToCartForm.css';
 
@@ -14,12 +14,13 @@ interface AddToCartFormProps {
         price: number;
         originalPrice?: number;
         images: string[];
-    };
-    onCartUpdate?: () => void;
+    },
+    onCartUpdate?: () => void,
+    onClose?: () => void
 }
 
-const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) => {
-    const { toast } = useToast();
+const AddToCartForm: React.FC<AddToCartFormProps> = ({product, onCartUpdate, onClose}) => {
+    const {toast} = useToast();
     const [variations, setVariations] = useState<ProductVariation[]>([]);
     const [selectedColor, setSelectedColor] = useState<string>('');
     const [selectedSize, setSelectedSize] = useState<string>('');
@@ -28,7 +29,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
     const [addingToCart, setAddingToCart] = useState<boolean>(false);
 
     // Use the custom hook for user profile
-    const { userProfile, loading: profileLoading } = useUserProfile();
+    const {userProfile, loading: profileLoading} = useUserProfile();
 
     useEffect(() => {
         loadVariations();
@@ -249,7 +250,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
                     className="add-to-cart-btn"
                     size="lg"
                 >
-                    <ShoppingCart className="btn-icon" />
+                    <ShoppingCart className="btn-icon"/>
                     {!userProfile ? 'Login Required' : addingToCart ? 'Adding...' : 'Add to Cart'}
                 </Button>
             </div>
@@ -359,7 +360,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
                 <div className="stock-status">
                     {isInStock ? (
                         <div className="in-stock">
-                            <Check className="stock-icon" />
+                            <Check className="stock-icon"/>
                             In Stock ({maxQuantity} available)
                         </div>
                     ) : (
@@ -377,7 +378,7 @@ const AddToCartForm: React.FC<AddToCartFormProps> = ({ product, onCartUpdate }) 
                 className="add-to-cart-btn"
                 size="lg"
             >
-                <ShoppingCart className="btn-icon" />
+                <ShoppingCart className="btn-icon"/>
                 {!userProfile ? 'Login Required' :
                     addingToCart ? 'Adding...' :
                         !selectedColor || !selectedSize ? 'Select Options' : 'Add to Cart'}
